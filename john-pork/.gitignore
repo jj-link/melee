@@ -1,0 +1,50 @@
+# Local disc data, rebuilt game assets, and emulator state.
+/original/
+/output/
+/releases/
+/playable/
+/DolphinUser/
+/interface/
+/character/*
+!/character/john-pork-portrait.png
+/importer/rig.json
+
+# HSDLib is a pinned Git submodule; other local dependencies stay private.
+/vendor/*
+!/vendor/HSDLib/
+
+# Workstation-specific generation environment, downloaded weights, and caches.
+/image-generation/
+/cache/
+/.venv/
+
+# Publish authored/generated art inputs, not reference photos or run metadata.
+/art/*
+!/art/john-pork-front.png
+!/art/john-pork-side.png
+!/art/john-pork-back.png
+!/art/john-pork-generated-front.png
+!/art/john-pork-generated-side.png
+!/art/john-pork-generated-back.png
+!/art/john-pork-generated.glb
+
+**/bin/
+**/obj/
+**/__pycache__/
+*.dat
+*.usd
+*.dol
+*.gcm
+*.gcz
+*.wbfs
+*.wad
+*.iso
+*.rvz
+*.safetensors
+*.gguf
+*.pt
+*.pth
+*.ckpt
+.env*
+*.pem
+*.key

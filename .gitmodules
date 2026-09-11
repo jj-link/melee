@@ -1,0 +1,3 @@
+[submodule "john-pork/vendor/HSDLib"]
+	path = john-pork/vendor/HSDLib
+	url = https://github.com/Ploaj/HSDLib.git

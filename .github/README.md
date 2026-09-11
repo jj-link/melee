@@ -14,7 +14,14 @@ Super Smash Bros Melee \
 [Linked Progress]: https://decomp.dev/doldecomp/melee.svg?mode=shield&measure=complete_code&label=linked&category=all
 [Discord Badge]: https://img.shields.io/discord/727908905392275526?color=%237289DA&logo=discord&logoColor=%23FFFFFF
 
-This repo contains a WIP decompilation of Super Smash Bros Melee (US).
+This is [jj-link's custom Melee fork](https://github.com/jj-link/melee), based on
+[doldecomp/melee](https://github.com/doldecomp/melee). The first customization is
+the **John Pork** character mod. Its source, build tools, and generated art inputs
+live in `john-pork/`; see [Modding](#modding) to build it from your own disc image.
+
+No game ISO, executable, extracted Nintendo assets, emulator profile, or AI model
+weights are distributed in this fork. The badges and decompilation instructions
+below refer to the upstream project.
 
 > [!TIP]
 > The DOL this repository builds can be shifted! Meaning you are able to now add and remove code as you see fit, for modding or research purposes.
@@ -100,7 +107,77 @@ We use Python for our command line tooling. It is recommended that you use a [vi
     ```
 
 # Modding
-Coming soon.
+
+## John Pork
+
+The current mod replaces Luigi's default/green costume with John Pork and updates
+the character-select portrait/name, roster tile, HUD stock icons, and results
+names/winner banner. It retains Luigi's moveset and is not a new character slot.
+
+The mod build is separate from the upstream decompilation build above: it patches
+assets and two same-layout name strings in a **user-supplied USA v1.02 Melee ISO**.
+It writes a separate playable ISO and never overwrites the source disc.
+
+### Requirements
+
+- Windows with Python 3.13, .NET SDK 10, and Blender 5.0.
+- A legally obtained, unmodified USA v1.02 Melee ISO.
+- [HSDLib](https://github.com/Ploaj/HSDLib), pinned as a Git submodule.
+- NumPy and Pillow, pinned in `reqs/john-pork.txt`.
+- A separately installed [Dolphin Emulator](https://dolphin-emu.org/) to play.
+
+The generated head model is included in `john-pork/art/`; no GPU generation
+service or downloaded model weights are required to rebuild the mod.
+
+### Build the mod
+
+Start in a PowerShell terminal:
+
+```powershell
+git clone --recurse-submodules https://github.com/jj-link/melee.git
+Set-Location melee
+py -3.13 -m venv john-pork/.venv
+$python = ".\john-pork\.venv\Scripts\python.exe"
+& $python -m pip install -r reqs/john-pork.txt
+```
+
+For an existing checkout, run `git submodule update --init --recursive` first.
+Adjust `$iso` and `$blender` below to your local paths. Run the commands in order;
+stop if any command reports an error.
+
+```powershell
+$iso = "C:\Games\Melee-USA-v1.02.iso"
+$blender = "C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
+$importer = "john-pork/importer/bin/Release/net10.0-windows/JohnPorkImporter.dll"
+
+dotnet build john-pork/importer/JohnPorkImporter.csproj -c Release
+& $python john-pork/tools/gamecube_disc.py extract $iso john-pork/original PlLgNr.dat MnSlChr.dat MnSlChr.usd
+dotnet $importer export-rig john-pork/original/PlLgNr.dat john-pork/importer/rig.json
+
+& $blender --background --python john-pork/tools/rig_generated_character_blender.py
+& $python john-pork/tools/build_character.py
+dotnet $importer import-mesh john-pork/original/PlLgNr.dat john-pork/character/john-pork-mesh.json john-pork/character/PlLgNr.dat
+
+dotnet $importer import-portrait john-pork/original/MnSlChr.dat 1 7 john-pork/character/john-pork-portrait.png john-pork/character/MnSlChr.dat
+dotnet $importer import-portrait john-pork/original/MnSlChr.usd 1 7 john-pork/character/john-pork-portrait.png john-pork/character/MnSlChr.usd
+& $python john-pork/tools/build_ui.py $iso
+& $python john-pork/tools/gamecube_disc.py rebuild $iso john-pork/replacements.json "john-pork/playable/Melee - John Pork.iso"
+```
+
+Open `john-pork/playable/Melee - John Pork.iso` in Dolphin and select John Pork.
+The existing `john-pork/Play John Pork.cmd` is a convenience launcher for the
+original local installation; its Dolphin executable and user profile are not
+included. Other installations should open the rebuilt ISO directly.
+
+All extracted files, rig/mesh exports, rebuilt archives, and disc images remain
+local and are ignored by Git. `render_character_blender.py` is an optional
+preview renderer, not a required build step.
+
+This is an unofficial fan mod. John Pork is a
+[third-party character](https://www.instagram.com/john.pork/); the original
+reference photograph is not redistributed. Generated art was produced using
+FLUX.2 Klein and Pixal3D. No ownership of Nintendo's or the character creator's
+intellectual property is claimed.
 
 # Containers
 Coming soon.
