@@ -1,3 +1,6 @@
 [submodule "john-pork/vendor/HSDLib"]
 	path = john-pork/vendor/HSDLib
 	url = https://github.com/Ploaj/HSDLib.git
+[submodule "john-pork/vendor/mexTool"]
+	path = john-pork/vendor/mexTool
+	url = https://github.com/akaneia/mexTool.git

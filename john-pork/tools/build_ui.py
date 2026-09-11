@@ -137,14 +137,17 @@ def patch_names(source):
     print('Patched only the two v1.02 character-name allocations; executable layout and code are unchanged.')
 
 
-def build(source):
+def build(source, *, assets_only=False):
     OUT.mkdir(parents=True, exist_ok=True)
-    patch_names(source)
-    extract(source, ROOT / 'original', [name for name in ARCHIVES if not name.startswith('MnSlChr')])
+    archives = ('MnSlChr.usd', 'GmRst.usd') if assets_only else ARCHIVES
+    if not assets_only:
+        patch_names(source)
+    extract(source, ROOT / 'original', [name for name in archives if assets_only or not name.startswith('MnSlChr')])
     manifests = {}
     inputs = {}
-    for name in ARCHIVES:
-        inputs[name] = ROOT / ('character' if name.startswith('MnSlChr') else 'original') / name
+    for name in archives:
+        directory = 'character' if name.startswith('MnSlChr') and not assets_only else 'original'
+        inputs[name] = ROOT / directory / name
         command('export-ui', inputs[name], INSPECT / name)
         manifests[name] = json.loads((INSPECT / name / 'textures.json').read_text())
 
@@ -154,6 +157,12 @@ def build(source):
     winner.convert('RGBA').save(OUT / 'john-pork-winner.png')
     card.convert('RGBA').save(OUT / 'john-pork-result-name.png')
     stock_icon(head).save(OUT / 'john-pork-stock.png')
+
+    if assets_only:
+        entry = resource(manifests['MnSlChr.usd'], 'MnSelectChrDataTable/versus/animation/joint17/material1/texture0/frame0')
+        roster_tile(bitmap('MnSlChr.usd', entry), head, card).save(OUT / 'john-pork-roster-MnSlChr.usd.png')
+        print('Standalone identity images ready; original character archives and DOL were not replaced.')
+        return
 
     stock_ids = {
         resource(manifests['IfAll.usd'], f'Stc_scemdls/animation0.0/joint1/material0/texture0/frame{7 + costume * 30}')['id']
@@ -181,4 +190,6 @@ def build(source):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path, help='Original USA v1.02 Melee ISO; opened read-only')
-    build(parser.parse_args().source)
+    parser.add_argument('--assets-only', action='store_true', help='Generate images for the expanded roster without replacing Luigi')
+    args = parser.parse_args()
+    build(args.source, assets_only=args.assets_only)

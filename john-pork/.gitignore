@@ -9,9 +9,10 @@
 !/character/john-pork-portrait.png
 /importer/rig.json
 
-# HSDLib is a pinned Git submodule; other local dependencies stay private.
+# HSDLib and mexTool are pinned Git submodules; downloaded binaries stay local.
 /vendor/*
 !/vendor/HSDLib/
+!/vendor/mexTool/
 
 # Workstation-specific generation environment, downloaded weights, and caches.
 /image-generation/

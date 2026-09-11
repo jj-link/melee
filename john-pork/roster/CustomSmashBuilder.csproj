@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>mexTool</RootNamespace>
+    <StartupObject>CustomSmash.Program</StartupObject>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+    <MexSource>../vendor/mexTool/mexTool</MexSource>
+    <MexRuntime>../vendor/mexTool-release</MexRuntime>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="*.cs" />
+    <Compile Include="$(MexSource)/**/*.cs" Exclude="$(MexSource)/bin/**;$(MexSource)/obj/**;$(MexSource)/Core/FileSystem/TempFileManager.cs" />
+    <Compile Include="obj/MEXTempFileManager.cs" />
+    <EmbeddedResource Include="$(MexSource)/**/*.resx">
+      <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </EmbeddedResource>
+    <Content Include="$(MexRuntime)/lib/*" Exclude="$(MexRuntime)/lib/*.dll">
+      <Link>lib/%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Reference Include="CSCore"><HintPath>$(MexRuntime)/lib/CSCore.dll</HintPath></Reference>
+    <Reference Include="GCILib"><HintPath>$(MexRuntime)/lib/GCILib.dll</HintPath></Reference>
+    <Reference Include="HSDRaw"><HintPath>$(MexRuntime)/lib/HSDRaw.dll</HintPath></Reference>
+    <Reference Include="MeleeMedia"><HintPath>$(MexRuntime)/lib/MeleeMedia.dll</HintPath></Reference>
+    <Reference Include="Octokit"><HintPath>$(MexRuntime)/lib/Octokit.dll</HintPath></Reference>
+    <Reference Include="YamlDotNet"><HintPath>$(MexRuntime)/lib/YamlDotNet.dll</HintPath></Reference>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Runtime.Serialization" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+  </ItemGroup>
+</Project>

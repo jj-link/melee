@@ -63,6 +63,24 @@ def read_dol(source):
         return offset, data
 
 
+def extract_system(source, destination):
+    """Extract the system files expected by the m-ex extracted-filesystem backend."""
+    destination.mkdir(parents=True, exist_ok=True)
+    with source.open('rb') as stream:
+        boot = stream.read(0x440)
+        if boot[:6] != b'GALE01' or boot[7] != 2:
+            raise ValueError('The expanded roster requires original USA v1.02 Melee')
+        (destination / 'boot.bin').write_bytes(boot)
+        (destination / 'bi2.bin').write_bytes(stream.read(0x2000))
+        app_header = stream.read(0x20)
+        code_size, trailer_size = struct.unpack_from('>II', app_header, 0x14)
+        app_data = stream.read(code_size + trailer_size)
+        if len(app_data) != code_size + trailer_size:
+            raise EOFError('Truncated original apploader')
+        (destination / 'apploader.img').write_bytes(app_header + app_data)
+    (destination / 'main.dol').write_bytes(read_dol(source)[1])
+
+
 
 def rebuild(source, replacements, target):
     if source.resolve() == target.resolve():

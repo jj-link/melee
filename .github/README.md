@@ -110,31 +110,38 @@ We use Python for our command line tooling. It is recommended that you use a [vi
 
 ## John Pork
 
-The current mod replaces Luigi's default/green costume with John Pork and updates
-the character-select portrait/name, roster tile, HUD stock icons, and results
-names/winner banner. It retains Luigi's moveset and is not a new character slot.
+The **Custom Smash** build adds John Pork as a **separate, selectable Luigi-based
+fighter** through m-ex. Original Luigi keeps his own slot, costumes, and identity.
+John Pork has his own roster tile, selection portrait/name, stock icon, and result
+names rather than overwriting Luigi's entries.
 
-The mod build is separate from the upstream decompilation build above: it patches
-assets and two same-layout name strings in a **user-supplied USA v1.02 Melee ISO**.
-It writes a separate playable ISO and never overwrites the source disc.
+The earlier costume-replacement build is preserved as `Melee - John Pork.iso`.
+The expanded build writes **`Melee - Custom Smash.iso`** and uses a separate
+Dolphin profile; it never opens either the original disc or the old ISO for writing.
+
+See the [character-creation guide](../john-pork/CHARACTER_CREATION.md) for the
+art-generation history, rigging choices, texture/UI pipeline, and how to approach
+the next character.
 
 ### Requirements
 
-- Windows with Python 3.13, .NET SDK 10, and Blender 5.0.
-- A legally obtained, unmodified USA v1.02 Melee ISO.
-- [HSDLib](https://github.com/Ploaj/HSDLib), pinned as a Git submodule.
+- Windows with Python 3.13, .NET SDK 10, Blender 5.0, and .NET Framework 4.8.
+- A legally obtained, unmodified, full USA v1.02 Melee ISO
+  (MD5 `0e63d4223b01d9aba596259dc155a174`).
+- [HSDLib](https://github.com/Ploaj/HSDLib) and
+  [mexTool](https://github.com/akaneia/mexTool), pinned as Git submodules.
 - NumPy and Pillow, pinned in `reqs/john-pork.txt`.
 - A separately installed [Dolphin Emulator](https://dolphin-emu.org/) to play.
 
 The generated head model is included in `john-pork/art/`; no GPU generation
 service or downloaded model weights are required to rebuild the mod.
 
-### Build the mod
+### Set up the tools
 
 Start in a PowerShell terminal:
 
 ```powershell
-git clone --recurse-submodules https://github.com/jj-link/melee.git
+git clone --branch custom-smash --recurse-submodules https://github.com/jj-link/melee.git
 Set-Location melee
 py -3.13 -m venv john-pork/.venv
 $python = ".\john-pork\.venv\Scripts\python.exe"
@@ -142,6 +149,48 @@ $python = ".\john-pork\.venv\Scripts\python.exe"
 ```
 
 For an existing checkout, run `git submodule update --init --recursive` first.
+
+### Build the expanded roster
+
+```powershell
+$iso = "C:\Games\Melee-USA-v1.02.iso"
+$blender = "C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
+& $python john-pork/tools/build_custom_smash.py $iso --blender $blender
+```
+
+The builder verifies the source disc, downloads and checksum-verifies the official
+m-ex runtime resources, rebuilds the John Pork costume, extracts a fresh working
+filesystem, and adds the fighter through the pinned m-ex installation/save APIs.
+The resource revision and SHA-256 pin are in
+[`prepare_mextool.py`](../john-pork/tools/prepare_mextool.py); a changed upstream
+rolling-release download is rejected rather than silently substituted.
+
+Open `john-pork/playable/Melee - Custom Smash.iso` in Dolphin. John Pork's extra
+tile is below Young Link at the bottom right. `Play Custom Smash.cmd` uses the
+original workstation's Dolphin installation with a separate profile under
+`john-pork/output/custom-smash/DolphinUser`; other installations can open the ISO
+directly.
+
+- John Pork is internal fighter **27**, external fighter **26**; Luigi remains
+  **17/7**. The six non-roster special fighters remain at the end of the tables.
+- The new fighter uses Luigi's moves, animations, effects, sounds/announcer, and
+  Kirby hat. This is a separate fighter slot, not a new moveset or voice pack.
+- Kirby's copied ability has its own cap archive and native callback adapter;
+  it does not depend on an actual Luigi also being in the match.
+- The normal m-ex runtime/default codes are retained, except that the optional
+  “Skip Result Screen” code is disabled so winner and player-card names are shown.
+- The generated disc filesystem and m-ex working data remain under
+  `john-pork/output/custom-smash`. Those two build-data trees are regenerated on
+  each build; the Dolphin profile and the old replacement ISO are not deleted.
+- Default controls match the earlier build: P1 uses WASD, J/K, I/Space, and Enter
+  (or the first XInput controller); P2 uses arrows, Numpad 1/2/5, and Numpad Enter.
+
+### Optional: rebuild the legacy costume replacement
+
+These older commands still build the Luigi-replacement variant. They are **not**
+used by the expanded-roster builder. Run them only when deliberately rebuilding
+`Melee - John Pork.iso`; the existing working copy is otherwise left alone.
+
 Adjust `$iso` and `$blender` below to your local paths. Run the commands in order;
 stop if any command reports an error.
 
