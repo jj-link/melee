@@ -166,22 +166,25 @@ The resource revision and SHA-256 pin are in
 rolling-release download is rejected rather than silently substituted.
 
 Open `john-pork/playable/Melee - Custom Smash.iso` in Dolphin. John Pork's extra
-tile is below Young Link at the bottom right. `john-pork/Play Custom Smash.cmd` uses the
-original workstation's Dolphin installation with a separate profile under
-`john-pork/output/custom-smash/DolphinUser`; other installations can open the ISO
-directly.
+tile is below Young Link at the bottom right.
 
-The combined Stephen Hawking/John Pork game is launched by **`Play Custom Smash.cmd`
+The combined Stephen Hawking/John Pork game is launched by **`play-custom-smash.cmd`
 at the repository root**. It opens `stephen-hawking/playable/Melee - Custom Smash.iso`
 with the separate profile under `stephen-hawking/output/custom-smash/DolphinUser`.
-The fighter-specific John Pork launchers above remain available for their older builds.
+From PowerShell in the repository root:
+
+```powershell
+.\play-custom-smash.cmd
+```
 
 - John Pork is internal fighter **27**, external fighter **26**; Luigi remains
   **17/7**. The six non-roster special fighters remain at the end of the tables.
-- The new fighter uses Luigi's moves, animations, effects, sounds/announcer, and
-  Kirby hat. This is a separate fighter slot, not a new moveset or voice pack.
-- Kirby's copied ability has its own cap archive and native callback adapter;
-  it does not depend on an actual Luigi also being in the match.
+- The expanded fighter keeps Luigi's movement, other specials, and sounds/announcer,
+  but neutral-B is Donkey Kong's chargeable Giant Punch with retargeted animations.
+  Tap B to charge, shield to store charge, and B again to punch; full charge is
+  stored automatically. Charge survives other specials and clears on a KO.
+- Kirby copies Giant Punch and its DK hat through a separate cap archive and
+  native cap/costume callback adapters; DK does not need to be in the match.
 - The normal m-ex runtime/default codes are retained, except that the optional
   “Skip Result Screen” code is disabled so winner and player-card names are shown.
 - The generated disc filesystem and m-ex working data remain under
@@ -219,9 +222,6 @@ dotnet $importer import-portrait john-pork/original/MnSlChr.usd 1 7 john-pork/ch
 ```
 
 Open `john-pork/playable/Melee - John Pork.iso` in Dolphin and select John Pork.
-The existing `john-pork/Play John Pork.cmd` is a convenience launcher for the
-original local installation; its Dolphin executable and user profile are not
-included. Other installations should open the rebuilt ISO directly.
 
 All extracted files, rig/mesh exports, rebuilt archives, and disc images remain
 local and are ignored by Git. `render_character_blender.py` is an optional

@@ -9,9 +9,9 @@ John Pork is a hybrid model:
 - Generated pig-head geometry and its texture atlas.
 - Script-authored eyes, nostrils, plaid clothing, jeans, and shoe textures.
 - Luigi's original body geometry, skeleton, animation weights, and native hand variants.
-- Luigi's animations and moveset. A different appearance does not create new attacks or a new skeleton.
+- Luigi's movement and most animations. In the expanded roster, neutral-B is Donkey Kong's chargeable Giant Punch, with animations retargeted to the existing skeleton.
 
-The initial implementation replaced the default green costume, `PlLgNr.dat`. Its separate ISO and `Play John Pork.cmd` launcher are retained as the working baseline.
+The initial implementation replaced the default green costume, `PlLgNr.dat`. Its separate ISO is retained as the working baseline.
 
 ## Reference art and 3D generation
 
@@ -46,8 +46,8 @@ The stored inverse binds are authoritative. Reconstructing a visually similar sk
 
 1. Import the generated GLB and apply its object transforms.
 2. Weld coincident vertices and cut away the generated body and raised shirt collar.
-3. Remove remaining garment-colored faces below the jaw without removing the pink skin.
-4. Decimate toward a 2,800-triangle head budget and use smooth normals.
+3. Remove remaining garment-colored faces below the jaw, checking face corners as well as centers so the dark collar fringe is removed.
+4. Decimate toward a 2,800-triangle head budget, remove pinched boundary fans, and use smooth normals.
 5. Resize the head atlas to 512 × 512.
 6. Transform the head into the original bind pose and attach its vertices to **Luigi joint 23**.
 7. Export the mesh, normals, UVs, joint assignment, and coordinate transform as `character/john-pork-generated-head.json`.
@@ -57,6 +57,8 @@ The scale, cut planes, color threshold, and attachment joint in that script are 
 ## Build clothing and facial details
 
 `tools/build_character.py` preserves the original body vertex positions and animation weights while assigning new materials and UV coordinates. It creates the plaid overshirt, gray T-shirt opening, jeans, and sneaker textures with a fixed NumPy random seed (`260910`).
+
+The original short neck mesh is replaced by a continuous collar-to-jaw bridge. Its boundary rings follow the body collar and generated head, with intermediate weights across joints **5, 22, and 23**. This closes the rear and side openings while the head moves without changing the original skeleton.
 
 The playable archive retains the native hand display objects and their open/fist/low-detail visibility variants. Replacing them with a single always-visible hand mesh would lose the original animation behavior.
 
@@ -69,6 +71,10 @@ The result is `character/john-pork-mesh.json`, plus generated textures. Both are
 `importer/MeshImporter.cs` converts the authored mesh back into Melee's HSD display objects, materials, texture formats, and skinning data. The original costume supplies the compatible joint structure and preserved native hand objects.
 
 The resulting costume is a model asset. Fighter registration, gameplay callbacks, animations, and character-select registration are separate concerns; a renamed DAT alone does not create another roster slot.
+
+Opaque textures retain their existing RGB565 colors and resolution. When a texture has at most 256 RGB565 colors and indexing saves space, the importer uses CI8 with an RGB565 palette. This preserves decoded pixels while reducing the fixed match-load heap footprint; geometry, animation targets, and the model archive's structural save settings remain unchanged. The combined builder reimports both costumes so a cached John Pork DAT cannot bypass this encoding.
+
+Regression scenario: load John Pork and Hawking together on Hyrule Temple. Their previous RGB565-only textures exhausted heap 4 when `GrSh.dat` was preloaded.
 
 ## Identity assets are separate from the model
 
@@ -83,7 +89,9 @@ The original cleanup required independent replacements for all of these:
 | Results-card name | 120 × 24, native intensity texture |
 | Character-select text | Separate name data, not part of the portrait |
 
-`tools/build_ui.py` extracts and identifies the original UI textures. It constructs the small head from the portrait, builds the roster tile, and composes JOHN PORK from the game's existing bitmap letter shapes. `importer/UiTextures.cs` repoints the matching texture references.
+`tools/build_ui.py` extracts and identifies the original UI textures. The roster tile and character-select portrait use the photographic face cutout in `art/john-pork-menu-head.png`; the generated portrait is `interface/john-pork-menu-portrait.png`. The expanded-roster builders regenerate these assets before assembling the game.
+
+The HUD/results stock head still uses the model-rendered `character/john-pork-portrait.png`, independently of the menu photo. The script composes JOHN PORK from the game's existing bitmap letter shapes. `importer/UiTextures.cs` repoints the matching texture references.
 
 For the original replacement build, Luigi is external character ID 7, the main portrait is bank 1/frame 7, and two executable name strings are patched in place. Those replacement-specific indices must not be reused to label a new fighter while leaving Luigi intact.
 
@@ -98,13 +106,14 @@ The `roster/` builder uses the pinned m-ex source and checksum-verified runtime 
 - `JohnPorkFighter.cs` clones Luigi's fighter configuration into a new entry before the non-roster special fighters. John Pork receives internal ID **27** and external ID **26**; original Luigi stays at **17/7**. The costume is installed under its own archive name rather than overwriting `PlLgNr.dat`.
 - The new entry owns its portrait, character-select tile and name, and stock head. `tools/build_ui.py --assets-only` generates the new images without applying the old Luigi-slot replacements.
 - `ResultNames.cs` adds the new winner and results-card name frames. The optional m-ex “Skip Result Screen” code is disabled so those surfaces remain visible.
-- `KirbyClone.cs` provides a separate cap archive and native callback adapter for the inherited Luigi copy ability. The adapter handles the original callbacks' Luigi-specific lookup and fireball registration; copying the fighter metadata alone is not enough. These PowerPC addresses and instructions are specific to the verified game/runtime revision.
+- `importer/JohnPorkAnimations.cs` creates private `PlJp.dat` and `PlJpAJ.dat` archives with eight retargeted Giant Punch clips and ten ground/air states. `JohnPorkGameplay.cs` installs the native charge/punch callbacks, keeps DK's attributes separate from Luigi's, and stores John's persistent charge at `Fighter+0x2238`.
+- `KirbyClone.cs` provides a separate DK copy-cap archive and native callback adapters. DK's full-body copy requires both the cap and costume runtime tables to be bound during ability gain and loss; binding only the cap causes a crash when Kirby swallows John without DK present. The adapters restore the donor entries afterward and preserve John's copied identity. These PowerPC addresses and instructions are specific to the verified game/runtime revision.
 
-John Pork still inherits Luigi's moves, animations, effects, sounds, announcer, and Kirby hat. An independent roster entry does not automatically provide a new moveset or voice pack.
+Tap neutral-B to charge, shield to store a partial charge, and press B again to punch. Full charge is stored automatically after ten arm swings. Ground and aerial punches are supported; charge survives the other specials and clears on a KO. Luigi-based movement, the other three specials, and the existing voice/announcer remain unchanged. Kirby copies Giant Punch and its DK hat rather than Luigi's fireball.
 
-This John-Pork-only roster build writes `playable/Melee - Custom Smash.iso`, launched locally through `john-pork/Play Custom Smash.cmd` from the repository root. Its extracted filesystem, m-ex working data, and separate Dolphin profile live under `output/custom-smash/`. Rebuilding regenerates the two working-data trees but preserves the profile, the older `Melee - John Pork.iso`, and `Play John Pork.cmd`.
+This John-Pork-only roster build writes `playable/Melee - Custom Smash.iso`, which can be opened directly in Dolphin. Its extracted filesystem, m-ex working data, and separate Dolphin profile live under `output/custom-smash/`. Rebuilding regenerates the two working-data trees but preserves the profile and the older `Melee - John Pork.iso`.
 
-The combined Stephen Hawking/John Pork game uses the repository-root `Play Custom Smash.cmd`. That launcher opens `stephen-hawking/playable/Melee - Custom Smash.iso` with its separate profile under `stephen-hawking/output/custom-smash/DolphinUser`.
+The combined Stephen Hawking/John Pork game uses the repository-root `play-custom-smash.cmd`. That launcher opens `stephen-hawking/playable/Melee - Custom Smash.iso` with its separate profile under `stephen-hawking/output/custom-smash/DolphinUser`.
 
 ## Adapting the process to another character
 
@@ -129,8 +138,9 @@ Keep the original ISO read-only and write a separately named output. Commit auth
 The expanded build was built successfully and exercised in Dolphin **2606a** on Windows:
 
 - Luigi and John Pork were selected independently and appeared together in a match, with separate models and stock heads.
-- John Pork fired a green fireball.
+- John charged Giant Punch to ten swings, stored partial charge by shielding, retained charge through the other three specials, and released partial/full punches on the ground and in the air. Charge cleared after a KO. Observed hits against Hawking dealt 16% for a partial punch and an additional 27.3% for a full punch in that match.
 - A completed match showed **JOHN PORK** as the winner while the player cards retained separate **LUIGI** and **JOHN PORK** names.
-- After a fresh emulator boot, Kirby swallowed John Pork in a match containing no Luigi, acquired the Luigi hat, and fired the copied green fireball.
+- After a fresh emulator boot, Kirby swallowed John in a match containing no DK, acquired the DK hat, charged the copied punch to ten swings, and dealt 30% with a full punch. A subsequent KO removed the copied ability and cleared its charge without a crash.
+- Rear and side neck views were checked in Dolphin, including punch poses. The collar-to-head bridge closed the opening and the generated dark collar fringe was removed.
 
 These checks cover the additional-slot and copy-ability integration. They are not an exhaustive test of every move, stage, game mode, or character interaction.

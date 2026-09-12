@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from gamecube_disc import extract, extract_system
+from gamecube_disc import extract, extract_system, read_dol
 from prepare_mextool import prepare
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +54,20 @@ def prepare_profile(root=ROOT):
         shutil.copyfile(prior_graphics, graphics)
 
 
+def build_character_assets(source, blender):
+    importer = ROOT / 'importer/bin/Release/net10.0-windows/JohnPorkImporter.dll'
+    originals = ('PlLgNr.dat', 'PlLg.dat', 'PlLgAJ.dat', 'PlDkNr.dat',
+                 'PlDk.dat', 'PlDkAJ.dat', 'EfDkData.dat')
+    extract(source, ROOT / 'original', originals)
+    (ROOT / 'original/main.dol').write_bytes(read_dol(source)[1])
+    run('dotnet', importer, 'export-rig', ROOT / 'original/PlLgNr.dat', ROOT / 'importer/rig.json')
+    run(blender, '--background', '--python', TOOLS / 'rig_generated_character_blender.py')
+    run(sys.executable, TOOLS / 'build_character.py')
+    run('dotnet', importer, 'import-mesh', ROOT / 'original/PlLgNr.dat', ROOT / 'character/john-pork-mesh.json', ROOT / 'character/PlLgNr.dat')
+    run('dotnet', importer, 'john-pork-import', ROOT)
+    run(sys.executable, TOOLS / 'build_ui.py', source, '--assets-only')
+
+
 def build(source, blender):
     source = source.resolve()
     if not blender.is_file():
@@ -67,13 +81,7 @@ def build(source, blender):
     prepare()
     build_dotnet(ROOT / 'importer/JohnPorkImporter.csproj')
     build_dotnet(ROOT / 'roster/CustomSmashBuilder.csproj')
-    importer = ROOT / 'importer/bin/Release/net10.0-windows/JohnPorkImporter.dll'
-    extract(source, ROOT / 'original', ['PlLgNr.dat'])
-    run('dotnet', importer, 'export-rig', ROOT / 'original/PlLgNr.dat', ROOT / 'importer/rig.json')
-    run(blender, '--background', '--python', TOOLS / 'rig_generated_character_blender.py')
-    run(sys.executable, TOOLS / 'build_character.py')
-    run('dotnet', importer, 'import-mesh', ROOT / 'original/PlLgNr.dat', ROOT / 'character/john-pork-mesh.json', ROOT / 'character/PlLgNr.dat')
-    run(sys.executable, TOOLS / 'build_ui.py', source, '--assets-only')
+    build_character_assets(source, blender)
 
     # These are owned, generated build trees. Keep them for inspection after a
     # build, but reset them before another; never delete the separate profile.
@@ -86,7 +94,7 @@ def build(source, blender):
     prepare_profile()
     print('\nReady: john-pork/playable/Melee - Custom Smash.iso')
     print('The original source disc and Melee - John Pork.iso were not modified.')
-    print('Open this John-Pork-only roster ISO in Dolphin, or use john-pork/Play Custom Smash.cmd on the original workstation.')
+    print('Open this John-Pork-only roster ISO directly in Dolphin.')
 
 
 if __name__ == '__main__':

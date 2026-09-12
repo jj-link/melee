@@ -44,12 +44,15 @@ uv_layer = mesh.loops.layers.uv.active
 garment_faces = []
 for face in mesh.faces:
     center = face.calc_center_median()
-    if center.z >= .275 or center.y <= .04:
+    if center.z >= .325 or center.y <= .04:
         continue
-    uv_center = sum((loop[uv_layer].uv for loop in face.loops), Vector((0, 0))) / len(face.loops)
-    color = pixels[min(height - 1, max(0, int(uv_center.y * height))),
-                   min(width - 1, max(0, int(uv_center.x * width)))]
-    if color[0] < .42:
+    # The raised collar reaches z=.30. Include its dark edge triangles, not
+    # just faces whose center is dark, or a black fringe survives the neck join.
+    samples = [loop[uv_layer].uv for loop in face.loops]
+    samples.append(sum(samples, Vector((0, 0))) / len(samples))
+    if any(pixels[min(height - 1, max(0, int(uv.y * height))),
+                  min(width - 1, max(0, int(uv.x * width))), 0] < .42
+           for uv in samples):
         garment_faces.append(face)
 bmesh.ops.delete(mesh, geom=garment_faces, context='FACES')
 print(f'Removed {len(garment_faces)} generated collar faces.')
@@ -60,6 +63,19 @@ decimate = obj.modifiers.new('Melee head polygon budget', 'DECIMATE')
 decimate.ratio = min(1, 2800 / original_triangles)
 decimate.use_collapse_triangulate = True
 bpy.ops.object.modifier_apply(modifier=decimate.name)
+# The color cut can leave skin fans touching only at a boundary vertex.
+# Open those pinches so the collar-to-jaw bridge has a continuous perimeter.
+mesh = bmesh.new()
+mesh.from_mesh(obj.data)
+bmesh.ops.remove_doubles(mesh, verts=list(mesh.verts), dist=.00002)
+while True:
+    pinches = [v for v in mesh.verts if sum(edge.is_boundary for edge in v.link_edges) > 2]
+    if not pinches:
+        break
+    faces = {face for v in pinches for face in v.link_faces}
+    bmesh.ops.delete(mesh, geom=list(faces), context='FACES')
+mesh.to_mesh(obj.data)
+mesh.free()
 for polygon in obj.data.polygons:
     polygon.use_smooth = True
 obj.data.update()

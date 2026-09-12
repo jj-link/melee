@@ -153,10 +153,17 @@ def build(source, *, assets_only=False):
 
     winner = lettering(manifests['GmRst.usd'], 10, (256, 28), gap=2, space=12)
     card = lettering(manifests['GmRst.usd'], 33, (120, 24), gap=2, space=6)
-    head = head_art()
+    # Menu photography is separate from the model-derived HUD stock icon.
+    with Image.open(ROOT / 'art/john-pork-menu-head.png') as photo:
+        head = photo.convert('RGBA')
+    portrait = head.copy()
+    portrait.thumbnail((136, 188), Image.Resampling.LANCZOS)
+    canvas = Image.new('RGBA', (136, 188))
+    canvas.alpha_composite(portrait, ((136 - portrait.width) // 2, (188 - portrait.height) // 2))
+    canvas.save(OUT / 'john-pork-menu-portrait.png')
     winner.convert('RGBA').save(OUT / 'john-pork-winner.png')
     card.convert('RGBA').save(OUT / 'john-pork-result-name.png')
-    stock_icon(head).save(OUT / 'john-pork-stock.png')
+    stock_icon(head_art()).save(OUT / 'john-pork-stock.png')
 
     if assets_only:
         entry = resource(manifests['MnSlChr.usd'], 'MnSelectChrDataTable/versus/animation/joint17/material1/texture0/frame0')

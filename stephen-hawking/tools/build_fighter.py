@@ -26,9 +26,7 @@ def build(source, blender):
         digest = hashlib.file_digest(stream, 'md5').hexdigest()
     if digest != shared.CLEAN_DISC_MD5:
         raise ValueError(f'Expected clean USA v1.02 ({shared.CLEAN_DISC_MD5}), got {digest}. Never use a modded ISO as input.')
-    for asset in ('character/PlLgNr.dat', 'character/john-pork-portrait.png',
-                  'interface/john-pork-stock.png', 'interface/john-pork-roster-MnSlChr.usd.png',
-                  'interface/john-pork-winner.png', 'interface/john-pork-result-name.png'):
+    for asset in ('art/john-pork-generated.glb', 'character/john-pork-portrait.png'):
         if not (JOHN / asset).is_file():
             raise FileNotFoundError(f'Existing John Pork asset required: {JOHN / asset}. Build John Pork first.')
     if not (ROOT / 'prototype/stephen-hawking.blend').is_file():
@@ -38,6 +36,7 @@ def build(source, blender):
     shared.prepare()
     shared.build_dotnet(JOHN / 'importer/JohnPorkImporter.csproj')
     shared.build_dotnet(JOHN / 'roster/CustomSmashBuilder.csproj')
+    shared.build_character_assets(source, blender)
     importer = JOHN / 'importer/bin/Release/net10.0-windows/JohnPorkImporter.dll'
     inputs = ('PlCo.dat', 'PlZdNr.dat', 'PlZd.dat', 'PlZdAJ.dat', 'PlZdDViWaitAJ.dat',
               'PlSs.dat', 'PlSsAJ.dat', 'GmRstMZd.dat', 'IrAls.dat', 'GmRegEnd.dat')
@@ -61,7 +60,7 @@ def build(source, blender):
     print(f'Built: {ROOT / "playable/Melee - Custom Smash.iso"}')
     print('Roster includes Stephen Hawking, John Pork, and every original fighter.')
     print('Hawking retains Zelda moves except down-B: Samus bomb drop, not Sheik transformation.')
-    print(f'Launch the combined game: {REPO / "Play Custom Smash.cmd"}')
+    print(f'Launch the combined game: {REPO / "play-custom-smash.cmd"}')
 
 
 if __name__ == '__main__':

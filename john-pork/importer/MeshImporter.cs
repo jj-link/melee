@@ -202,6 +202,7 @@ internal static class MeshImporter
                 throw new InvalidDataException($"Texture {texturePath} dimensions must be powers of two, 4..512.");
             // GXImageConverter historically calls this RGBA but consumes native Windows BGRA bytes.
             var pixels = new byte[source.Width * source.Height * 4];
+            var colors = new HashSet<int>();
             for (int y = 0; y < source.Height; y++)
                 for (int x = 0; x < source.Width; x++)
                 {
@@ -209,8 +210,13 @@ internal static class MeshImporter
                     if (color.A != 255)
                         throw new InvalidDataException($"Texture {texturePath} is not opaque at ({x},{y}).");
                     int i = (y * source.Width + x) * 4;
-                    pixels[i] = color.B; pixels[i + 1] = color.G;
-                    pixels[i + 2] = color.R; pixels[i + 3] = 255;
+                    // Keep the existing RGB565 precision before lossless palette encoding.
+                    pixels[i] = (byte)(color.B & 0xF8);
+                    pixels[i + 1] = (byte)(color.G & 0xFC);
+                    pixels[i + 2] = (byte)(color.R & 0xF8);
+                    pixels[i + 3] = 255;
+                    if (colors.Count <= 256)
+                        colors.Add(pixels[i] | pixels[i + 1] << 8 | pixels[i + 2] << 16);
                 }
             var texture = new HSD_TOBJ {
                 TexMapID = GXTexMapID.GX_TEXMAP0, GXTexGenSrc = GXTexGenSrc.GX_TG_TEX0,
@@ -220,7 +226,12 @@ internal static class MeshImporter
                 Blending = 1, MagFilter = GXTexFilter.GX_LINEAR,
                 LOD = new HSD_TOBJ_LOD { MinFilter = GXTexFilter.GX_LINEAR }
             };
-            texture.EncodeImageData(pixels, source.Width, source.Height, GXTexFmt.RGB565, GXTlutFmt.RGB565);
+            // CI8 uses 8x4 tiles and a 512-byte RGB565 palette. Keep RGB565 when
+            // indexing would lose colors or increase the archive's memory footprint.
+            int indexedBytes = ((source.Width + 7) & ~7) * source.Height + 512;
+            var format = colors.Count <= 256 && indexedBytes < pixels.Length / 2
+                ? GXTexFmt.CI8 : GXTexFmt.RGB565;
+            texture.EncodeImageData(pixels, source.Width, source.Height, format, GXTlutFmt.RGB565);
             material.Textures = texture;
             material.RenderFlags |= RENDER_MODE.TEX0;
         }

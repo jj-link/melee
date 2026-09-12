@@ -1,5 +1,6 @@
 """Build John Pork's Melee-resolution mesh against the exact Luigi bind skeleton."""
 import json
+from collections import Counter
 import math
 from pathlib import Path
 
@@ -149,6 +150,7 @@ def adopt(drawables, label, material_id, uv_function):
 adopt([0, 2], 'Jeans with original leg deformation', jeans, lambda x, y, z: [(.5 + math.atan2(x - math.copysign(1.12, x), z) / math.tau), (5.1 - y) / 4.3])
 adopt([1, 5, 6], 'Plaid overshirt body', shirt, lambda x, y, z: [math.atan2(x, z) / math.tau + .5, (8.9 - y) / 4.6])
 adopt([7], 'Neck', skin, lambda x, y, z: [x / 2 + .5, (9.3 - y)])
+neck_mesh = meshes.pop()
 adopt([8], 'Plaid sleeves', sleeve, lambda x, y, z: [abs(x) / 5, math.atan2(y - 7.93, z + .18) / math.tau + .5])
 adopt([26, 47], 'Canvas sneaker uppers', shoes, lambda x, y, z: [math.atan2(x - math.copysign(1.14, x), z - .5) / math.tau + .5, 1 - max(0, min(1, (y + .16) / 1.8))])
 adopt([27, 48], 'Rubber sneaker soles', sole, lambda x, y, z: [.5, .5])
@@ -188,6 +190,96 @@ materials.extend(head['materials'])
 for mesh in head['meshes']:
     mesh['material'] += material_offset
     meshes.append(mesh)
+
+
+def boundary_ring(mesh, axis):
+    # Weld display-list/UV duplicates only for topology; source vertices stay intact.
+    by_position = {tuple(v['position']): v for v in mesh['vertices']}
+    edges = Counter()
+    for triangle in mesh['triangles']:
+        points = [tuple(mesh['vertices'][i]['position']) for i in triangle]
+        if len(set(points)) != 3:
+            continue
+        for a, b in zip(points, points[1:] + points[:1]):
+            edges[tuple(sorted((a, b)))] += 1
+    neighbors = {}
+    for (a, b), count in edges.items():
+        if count == 1:
+            neighbors.setdefault(a, []).append(b)
+            neighbors.setdefault(b, []).append(a)
+    # Lowest boundary selects the inherited collar; rearmost selects the main
+    # generated head shell, not its separate, overlapping inner shell.
+    start = min(neighbors, key=lambda p: p[axis])
+    ring, previous, current = [], None, start
+    while True:
+        if len(neighbors[current]) != 2 or current in ring:
+            raise ValueError(f'{mesh["name"]}: neck attachment is not a simple boundary')
+        ring.append(current)
+        following = next(p for p in neighbors[current] if p != previous)
+        if following == start:
+            break
+        previous, current = current, following
+    # Both loops run front -> right -> back -> left, with a common front seam.
+    area = sum(a[0] * b[2] - b[0] * a[2] for a, b in zip(ring, ring[1:] + ring[:1]))
+    if area > 0:
+        ring.reverse()
+    front = max(range(len(ring)), key=lambda i: ring[i][2])
+    ring = ring[front:] + ring[:front]
+    return [by_position[p] for p in ring]
+
+
+def connect_neck(collar, jaw):
+    # Subdivide BOTH boundary polylines at their combined perimeter fractions.
+    # This retains every collar/head corner rather than bridging past an edge.
+    rings, distances = [], []
+    for boundary in (collar, jaw):
+        positions = np.array([v['position'] for v in boundary] + [boundary[0]['position']])
+        lengths = np.linalg.norm(np.diff(positions, axis=0), axis=1)
+        distances.append(np.concatenate(([0.], np.cumsum(lengths))) / lengths.sum())
+        rings.append(positions)
+    samples = sorted(set(distances[0][:-1]) | set(distances[1][:-1]))
+    boundaries = []
+    for positions, distance in zip(rings, distances):
+        boundaries.append(np.array([[np.interp(t, distance, positions[:, axis])
+                                     for axis in range(3)] for t in samples]))
+    vertices, triangles = [], []
+    # Joint 5 matches the collar exactly, 22 carries neck flexion, and the last
+    # row is wholly joint 23 like the unchanged generated head. No arm weights:
+    # winding/punch shoulder motion must not pull the neckline off the chest.
+    rows = [(0., (5,), (1.,)),
+            (.25, (5, 22), (.45, .55)),
+            (.5, (5, 22, 23), (.1, .65, .25)),
+            (.75, (22, 23), (.3, .7)),
+            (1., (23,), (1.,))]
+    for height, joints, weights in rows:
+        for t, lower, upper in zip(samples, *boundaries):
+            position = lower * (1 - height) + upper * height
+            vertices.append(vertex(position, (0, 0, 0), (t, 1 - height), joints, weights))
+    count = len(samples)
+    for row in range(len(rows) - 1):
+        for col in range(count):
+            a = row * count + col
+            next_col = row * count + (col + 1) % count
+            triangles.extend([[a, next_col, a + count],
+                              [next_col, next_col + count, a + count]])
+    normals = np.zeros((len(vertices), 3))
+    positions = np.array([v['position'] for v in vertices])
+    for a, b, c in triangles:
+        normal = np.cross(positions[b] - positions[a], positions[c] - positions[a])
+        normals[[a, b, c]] += normal
+    for v, normal in zip(vertices, normals):
+        v['normal'] = (normal / max(np.linalg.norm(normal), 1e-12)).tolist()
+    meshes.append({'name': 'Connected collar-to-jaw neck', 'material': skin,
+                   'vertices': vertices, 'triangles': triangles})
+
+
+# Drawable 7 stopped at y=9.266 with only 30% head weighting. The generated
+# head's open nape reaches y=9.949 / z=-1.553, so retaining that short tube leaves
+# the back and sides open. Replace it with a complete 360-degree skin bridge:
+# original collar boundary (y=8.473..8.848) to the ACTUAL generated jaw boundary
+# (y=8.951..9.949). Shared positions and endpoint weights seal both attachments
+# through animation without moving the head, clothing, or any bind joint.
+connect_neck(boundary_ring(neck_mesh, 1), boundary_ring(head['meshes'][0], 2))
 
 
 def head_point(x, y, z):

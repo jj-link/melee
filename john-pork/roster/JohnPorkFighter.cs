@@ -41,13 +41,16 @@ namespace CustomSmash
                 MaterialSymbol = model.Roots.SingleOrDefault(r => r.Name.EndsWith("_matanim_joint", StringComparison.Ordinal))?.Name,
                 VisibilityIndex = luigi.Costumes[0].VisibilityIndex
             };
-            using (var csp = new Bitmap(Path.Combine(root, "character", "john-pork-portrait.png")))
+            using (var csp = new Bitmap(Path.Combine(root, "interface", "john-pork-menu-portrait.png")))
                 costume.CSP = csp.ToTOBJ(GXTexFmt.CI8, GXTlutFmt.RGB5A3);
             using (var stock = new Bitmap(Path.Combine(root, "interface", "john-pork-stock.png")))
                 costume.Icon = stock.ToTOBJ(GXTexFmt.CI4, GXTlutFmt.RGB5A3);
             MEX.ImageResource.AddFile(costume.FileName, modelPath);
             john.Costumes.Clear();
-            john.Costumes.Add(costume);
+            // The CSS assigns distinct costume indices to duplicate fighters.
+            // Share the same model and menu portrait across all four player slots.
+            for (int slot = 0; slot < 4; slot++)
+                john.Costumes.Add(costume);
             john.RedCostumeIndex = john.BlueCostumeIndex = john.GreenCostumeIndex = 0;
 
             // Six special/non-roster fighters must remain at the end. Inserting
@@ -55,7 +58,17 @@ namespace CustomSmash
             MEX.Fighters.Insert(MEX.FighterCount - MEXFighterIDConverter.InternalSpecialCharCount, john);
             int internalId = MEX.Fighters.IndexOf(john);
             int externalId = MEXFighterIDConverter.ToExternalID(internalId, MEX.FighterCount);
-            KirbyClone.Add(luigi, john);
+            var fighterFile = new HSDRawFile(Path.Combine(root, "character", "PlJp.dat"));
+            JohnPorkGameplay.Configure(luigi, john, fighterFile, root);
+            john.FighterDataPath = "PlJp.dat";
+            john.AnimFile = "PlJpAJ.dat";
+            john.AnimCount = 320;
+            using (var stream = new MemoryStream())
+            {
+                fighterFile.Save(stream, bufferAlign: true, optimize: false, trim: false);
+                MEX.ImageResource.AddFile(john.FighterDataPath, stream.ToArray());
+            }
+            MEX.ImageResource.AddFile(john.AnimFile, Path.Combine(root, "character", john.AnimFile));
             AddRosterIcon(root, luigi, john);
             Console.WriteLine($"Added {john.NameText}: internal {internalId}, external {externalId}, costume {costume.FileName}.");
             return externalId;

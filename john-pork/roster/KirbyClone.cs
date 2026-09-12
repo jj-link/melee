@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using HSDRaw;
 using mexTool.Core;
@@ -6,68 +7,59 @@ namespace CustomSmash
 {
     internal static class KirbyClone
     {
-        internal static void Add(MEXFighter luigi, MEXFighter john)
+        internal static void Add(MEXFighter donkey, MEXFighter john)
         {
-            var cap = new HSDRawFile(MEX.ImageResource.GetFileData(luigi.KirbyCapFileName));
-            // m-ex 1.1 Header.s: rtoc+0x124 is Kirby's cap-data pointer table.
-            // Vanilla Luigi's gain callback indexes slot 17. Bind that one slot
-            // to the current copy's loaded cap for the call, then restore it.
-            // This works even when no actual Luigi is present in the match.
-            var code = Words(
-                0x9421FFE0, // stwu r1,-0x20(r1)
-                0x7C0802A6, // mflr r0
-                0x90010024, // stw r0,0x24(r1)
-                0x93C10018, // stw r30,0x18(r1)
-                0x93E1001C, // stw r31,0x1C(r1)
-                0x83E20124, // lwz r31,0x124(r2): cap pointer table
-                0x83DF0044, // lwz r30,17*4(r31): preserve Luigi's entry
-                0x8083002C, // lwz r4,0x2C(r3): GOBJ user data
-                0x80842238, // lwz r4,0x2238(r4): copied internal fighter kind
-                0x5484103A, // slwi r4,r4,2
-                0x7C9F202E, // lwzx r4,r31,r4
-                0x909F0044, // stw r4,17*4(r31)
-                0x48000001, // bl original Luigi gain callback (relocated)
-                0x93DF0044, // stw r30,17*4(r31)
-                0x83C10018, // lwz r30,0x18(r1)
-                0x83E1001C, // lwz r31,0x1C(r1)
-                0x80010024, // lwz r0,0x24(r1)
-                0x7C0803A6, // mtlr r0
-                0x38210020, // addi r1,r1,0x20
-                0x4E800020, // blr
-                // KirbyIndexItems passes (copied kind, loaded cap data), not GOBJ.
-                // IDs >=27 do not enter the vanilla item-initialization switch.
-                0x8064000C, // lwz r3,0x0C(r4): Luigi fireball article
-                0x38800084, // li r4,132: It_Kind_Kirby_LuigiFire
-                0x48000000  // b ItemRegister (relocated tail call)
-            );
-            var relocations = Words(
-                0x0A000030, luigi.Functions.KirbyOnSwallow,
-                0x0A000058, 0x8026B3F8
-            );
-            // xFunction overrides table index 0 (gain) and 5 (item initialization).
-            var overrides = Words(0, 0, 5, 0x50);
-            var header = new HSDStruct(0x20);
-            header.SetReferenceStruct(0, code);
-            header.SetReferenceStruct(4, relocations);
-            header.SetInt32(8, 2);
-            header.SetReferenceStruct(0x0C, overrides);
-            header.SetInt32(0x10, 2);
-            header.SetInt32(0x14, 0x5C);
-            cap.Roots.Add(new HSDRootNode { Name = "kbFunction", Data = new HSDAccessor { _s = header } });
+            var cap = new HSDRawFile(MEX.ImageResource.GetFileData(donkey.KirbyCapFileName));
+            john.KirbyCapSymbol = donkey.KirbyCapSymbol;
+            john.KirbyEffectFile = donkey.KirbyEffectFile;
+            john.KirbyEffectSymbol = donkey.KirbyEffectSymbol;
+            john.KirbyCostumes = System.ObjectExtensions.Copy(donkey.KirbyCostumes);
+            john.Functions.KirbySpecialN = donkey.Functions.KirbySpecialN;
+            john.Functions.KirbySpecialNAir = donkey.Functions.KirbySpecialNAir;
+            john.Functions.KirbyOnSwallow = donkey.Functions.KirbyOnSwallow;
+            john.Functions.KirbyOnLoseAbility = donkey.Functions.KirbyOnLoseAbility;
+            // The vanilla Kirby cleanup switch recognizes copied kind3, not
+            // John's kind27. Its DK branch is exactly this BC-charge/effect
+            // cleanup; use the expanded m-ex copy callbacks instead of lying
+            // about the copied fighter identity throughout the match.
+            john.Functions.KirbyOnHit = 0x80100DE0;
+            john.Functions.KirbyOnDeath = 0x80100DE0;
+            john.Functions.KirbyOnItemInit = 0;
+            john.Functions.KirbyOnFrame = 0;
+            uint donorSlot = (uint)MEX.Fighters.IndexOf(donkey) * 4;
+            uint johnSlot = (uint)MEX.Fighters.IndexOf(john) * 4;
+            // DK's full-body copy needs both rtoc+124 cap data and rtoc+120
+            // costume data. Bind the donor entries only during gain/loss;
+            // keep John's identity and restore any real DK's cached entries.
+            var bind = new uint[] {
+                0x9421FFE0, 0x7C0802A6, 0x90010024, 0xBF810010,
+                0x83E20124, 0x83DF0000 | donorSlot, 0x83A20120, 0x839D0000 | donorSlot,
+                0x809F0000 | johnSlot, 0x909F0000 | donorSlot,
+                0x809D0000 | johnSlot, 0x909D0000 | donorSlot,
+                0x48000001, 0x93DF0000 | donorSlot, 0x939D0000 | donorSlot,
+                0xBB810010, 0x80010024, 0x7C0803A6, 0x38210020, 0x4E800020 };
+            var instructions = new List<uint>(bind);
+            uint lose = (uint)instructions.Count * 4;
+            instructions.AddRange(bind);
+            uint restoreFlash = (uint)instructions.Count * 4;
+            instructions.AddRange(new uint[] {
+                // Restore DK's full-charge flash without its kind3 test.
+                // Kirby's private persistent xBC is Fighter+22E8, not John's2238.
+                0x8063002C, 0x808302D4, 0x80040190, 0x808322E8, 0x7C040000,
+                0x4C820020, 0x3880003A, 0x38A00000, 0x48000000 });
+            var code = HawkingNativeCode.Words(instructions.ToArray());
+            var relocations = HawkingNativeCode.Words(
+                0x0A000030, donkey.Functions.KirbyOnSwallow,
+                0x0A000000 | (lose + 0x30), donkey.Functions.KirbyOnLoseAbility,
+                0x0A000000 | (restoreFlash + 0x20), 0x800BFFD0);
+            cap.Roots.Add(new HSDRootNode { Name = "kbFunction", Data = new HSDAccessor {
+                _s = HawkingNativeCode.Header(code, relocations, 3, 0, 0, 1, lose, 7, restoreFlash) } });
             john.KirbyCapFileName = "PlKbJp.dat";
             using (var stream = new MemoryStream())
             {
                 cap.Save(stream, trim: true);
                 MEX.ImageResource.AddFile(john.KirbyCapFileName, stream.ToArray());
             }
-        }
-
-        private static HSDStruct Words(params uint[] values)
-        {
-            var data = new HSDStruct(values.Length * 4);
-            for (int i = 0; i < values.Length; i++)
-                data.SetInt32(i * 4, unchecked((int)values[i]));
-            return data;
         }
     }
 }

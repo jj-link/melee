@@ -241,8 +241,8 @@ namespace CustomSmash
             // ftKb_SpecialN_800F0A54 indexes vanilla Zelda slot19 in the cap
             // table. m-ex Header.s rtoc+0x124 owns the expanded table and Kirby
             // Fighter+0x2238 is the copied INTERNAL ID. Bind slot19 only during
-            // this synchronous gain callback, exactly as KirbyClone does for
-            // Luigi. Nayru's Love uses no Kirby article, so no item-init wrapper
+            // this synchronous gain callback. Zelda's hat needs no full-body
+            // costume binding or Kirby article, so no item-init wrapper
             // or bomb copying is appropriate. All other Zelda copy callbacks,
             // copy effects and cap metadata remain the original ones.
             var code = HawkingNativeCode.Words(
