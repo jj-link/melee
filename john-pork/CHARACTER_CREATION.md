@@ -62,6 +62,8 @@ The original short neck mesh is replaced by a continuous collar-to-jaw bridge. I
 
 The playable archive retains the native hand display objects and their open/fist/low-detail visibility variants. Replacing them with a single always-visible hand mesh would lose the original animation behavior.
 
+The neck texture and all eight native hand drawables share `skin_rgb = (238, 155, 138)`, sampled from the generated head's nape. Keep this palette shared rather than maintaining separate neck and hand colors. The skin match was checked in Dolphin in idle and jumping poses; native lighting and the original geometry, weights, and visibility variants remain intact.
+
 The generated face had dark, recessed eyes. The script adds eye whites, brown irises, pupils, small highlights, and nostril surfaces. These share the head joint; no new facial bones or blinking animation were created.
 
 The result is `character/john-pork-mesh.json`, plus generated textures. Both are derived build outputs and remain out of Git. `tools/render_character_blender.py` can produce an editable preview and render it, but is not required to build the playable costume.

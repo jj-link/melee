@@ -49,7 +49,9 @@ def make_plaid(size):
     return Image.fromarray(np.uint8(np.clip(rgb, 0, 255)))
 
 
-skin_image = texture('skin', (210, 155, 151), 1.7, 512)
+# Median RGB sampled from the generated head's nape; share it with every hand variant.
+skin_rgb = (238, 155, 138)
+skin_image = texture('skin', skin_rgb, 1.7, 512)
 # Subtle variation survives RGB565 without turning the character into a flat pink toy.
 sy, sx = np.indices((512, 512))
 skin_pixels = np.array(skin_image).astype(float)
@@ -92,7 +94,7 @@ for yy in range(50, 151, 20):
 shoe.save(TEX / 'shoe.png')
 
 skin = material('Warm natural pig skin', image='skin')
-hands = material('Natural hand skin', (.82, .61, .59))
+hands = material('Natural hand skin', tuple(channel / 255 for channel in skin_rgb))
 shirt = material('Open red plaid overshirt and gray tee', image='body')
 sleeve = material('Plaid sleeves', image='plaid')
 jeans = material('Blue denim', image='denim')
