@@ -102,7 +102,9 @@ The `roster/` builder uses the pinned m-ex source and checksum-verified runtime 
 
 John Pork still inherits Luigi's moves, animations, effects, sounds, announcer, and Kirby hat. An independent roster entry does not automatically provide a new moveset or voice pack.
 
-The output is `playable/Melee - Custom Smash.iso`, launched locally through `Play Custom Smash.cmd`. Its extracted filesystem, m-ex working data, and separate Dolphin profile live under `output/custom-smash/`. Rebuilding regenerates the two working-data trees but preserves the profile, the older `Melee - John Pork.iso`, and `Play John Pork.cmd`.
+This John-Pork-only roster build writes `playable/Melee - Custom Smash.iso`, launched locally through `john-pork/Play Custom Smash.cmd` from the repository root. Its extracted filesystem, m-ex working data, and separate Dolphin profile live under `output/custom-smash/`. Rebuilding regenerates the two working-data trees but preserves the profile, the older `Melee - John Pork.iso`, and `Play John Pork.cmd`.
+
+The combined Stephen Hawking/John Pork game uses the repository-root `Play Custom Smash.cmd`. That launcher opens `stephen-hawking/playable/Melee - Custom Smash.iso` with its separate profile under `stephen-hawking/output/custom-smash/DolphinUser`.
 
 ## Adapting the process to another character
 

@@ -138,7 +138,7 @@ internal static class MeshImporter
         }
 
         // Keep all original DOBJ shells, material/texture animation targets, and their absolute indices intact.
-        // Keep native hand geometry so Luigi's open/fist and high/low-detail switches remain exact.
+        // Preserve requested native geometry and its high/low-detail visibility switches.
         HSD_DOBJ? last = null;
         int originalDrawables = 0;
         var preserved = document.PreservedDrawables.ToDictionary(p => p.Index);

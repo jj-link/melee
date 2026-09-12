@@ -166,10 +166,15 @@ The resource revision and SHA-256 pin are in
 rolling-release download is rejected rather than silently substituted.
 
 Open `john-pork/playable/Melee - Custom Smash.iso` in Dolphin. John Pork's extra
-tile is below Young Link at the bottom right. `Play Custom Smash.cmd` uses the
+tile is below Young Link at the bottom right. `john-pork/Play Custom Smash.cmd` uses the
 original workstation's Dolphin installation with a separate profile under
 `john-pork/output/custom-smash/DolphinUser`; other installations can open the ISO
 directly.
+
+The combined Stephen Hawking/John Pork game is launched by **`Play Custom Smash.cmd`
+at the repository root**. It opens `stephen-hawking/playable/Melee - Custom Smash.iso`
+with the separate profile under `stephen-hawking/output/custom-smash/DolphinUser`.
+The fighter-specific John Pork launchers above remain available for their older builds.
 
 - John Pork is internal fighter **27**, external fighter **26**; Luigi remains
   **17/7**. The six non-roster special fighters remain at the end of the tables.

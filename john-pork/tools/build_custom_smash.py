@@ -30,8 +30,8 @@ def build_dotnet(project):
     run('dotnet', 'build', project, '-c', 'Release', '--no-restore')
 
 
-def prepare_profile():
-    config = WORK / 'DolphinUser/Config'
+def prepare_profile(root=ROOT):
+    config = root / 'output/custom-smash/DolphinUser/Config'
     config.mkdir(parents=True, exist_ok=True)
     dolphin = config / 'Dolphin.ini'
     if not dolphin.exists():
@@ -86,7 +86,7 @@ def build(source, blender):
     prepare_profile()
     print('\nReady: john-pork/playable/Melee - Custom Smash.iso')
     print('The original source disc and Melee - John Pork.iso were not modified.')
-    print('Open the new ISO in Dolphin, or use Play Custom Smash.cmd on the original workstation.')
+    print('Open this John-Pork-only roster ISO in Dolphin, or use john-pork/Play Custom Smash.cmd on the original workstation.')
 
 
 if __name__ == '__main__':

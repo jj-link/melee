@@ -1,0 +1,18 @@
+{
+  "model": "black-forest-labs/FLUX.2-klein-4B",
+  "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+  "gpu_uuid": "GPU-e665a1dd-c279-05ca-a396-e7b95d783790",
+  "reference": "references/face-reference.png",
+  "outputs": [
+    {
+      "file": "head-candidate-27183.png",
+      "prompt": "Edit the supplied Stephen Hawking portrait into a clean, isolated three-dimensional game-character head. Keep EXACTLY the same distinctive face, head angle, asymmetric open-mouthed expression, visible teeth, large thin metal-framed eyeglasses, and sparse side-combed gray-brown hair as in the photograph. Do not straighten or beautify his face. Do not replace him with a different elderly man. Finish the complete solid skull, ears, chin, and a short bare neck as a coherent sculpted head. Remove the wheelchair, headrest, clothing and shoulders entirely. One head only. Style: a recognizable hand-painted 2001 GameCube character, natural warm skin, simplified clean surfaces, clearly modeled nose, lips, cheeks, ears and glasses; no photographic background baked into the head. Soft even studio lighting, plain pale-gray background, no text, no watermark. The whole head including hair and ears must be visible, centered with generous empty margin.",
+      "seed": 27183,
+      "width": 768,
+      "height": 768,
+      "steps": 4,
+      "guidance_scale": 1.0,
+      "elapsed_seconds": 200.94319081306458
+    }
+  ]
+}

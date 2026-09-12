@@ -1,0 +1,57 @@
+{
+  "primary": {
+    "file": "references/user-reference.png",
+    "origin": "Photograph supplied by the user in this conversation",
+    "use": "Facial likeness, seated posture, clothing, spectacles, and computer-equipped wheelchair silhouette",
+    "redistributed": false
+  },
+  "color_reference": {
+    "file": "references/color-reference.png",
+    "origin": "Additional Cambridge photograph supplied by the user during refinement",
+    "use": "Warm blond-grey hair, warm mid-grey suit and trousers, and an off-white shirt",
+    "redistributed": false
+  },
+  "supplementary": [
+    {
+      "title": "Wheelchair by Permobil, model F3 Corpus",
+      "source": "Science Museum Group Collection, object 2021-561/19",
+      "url": "https://collection.sciencemuseumgroup.org.uk/objects/co8871096/wheelchair-by-permobil-model-f3-corpus",
+      "image": "https://coimages.sciencemuseumgroup.org.uk/512/74/large_e2021_0174_1__0001_.jpg",
+      "license": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "use": "Reference for drive wheels, rear casters, articulated computer mount, foot supports, and under-seat mechanical layout. No photograph is embedded in the mesh textures.",
+      "limitation": "The museum chair was made in 2016. The user's partly occluded chair is not asserted to be this exact model; unseen components are a reference-informed stylization."
+    }
+  ],
+  "generated_head": {
+    "portrait": "head-candidate-27183.png",
+    "mesh": "hawking-head-generated.glb",
+    "generation_record": "head-generation.json",
+    "selection_and_matte": "head-selection.json",
+    "reconstruction_workflow": "../image-generation/head-api-workflow.json",
+    "diffuse_override": "head-diffuse-blond-grey.png",
+    "hair_mask": "head-hair-mask.png",
+    "prototype_neck_assembly": "Connected head/neck mesh with a nape-aware fit, removal of overlapping inner-neck faces, and vertex-color skin blending.",
+    "hair_tint": {
+      "space": "Original embedded diffuse PNG, 8-bit RGB values",
+      "gray_mix_weights": [0.2126, 0.7152, 0.0722],
+      "gray_gain": 1.20,
+      "gray_lift": 2.0,
+      "rgb_multipliers": [1.18, 1.07, 0.84],
+      "output": "Rounded and clamped to 0-255 inside the authored hair mask only",
+      "selected_texels": 63761,
+      "preserved": "Unmasked pixels and all alpha values are unchanged; dark hair detail is retained."
+    },
+    "limitation": "Reference-guided stylization, not a scan or a photorealistic likeness."
+  },
+  "communication_display": {
+    "texture": "communication-screen.png",
+    "origin": "Original illustrative communication UI, not a screenshot of Hawking's actual software."
+  },
+  "planned_moveset": {
+    "base_fighter": "Zelda",
+    "retained": "All Zelda moves except the down-special transformation into Sheik",
+    "down_special": "Samus's bomb-drop attack, replacing the transformation into Sheik",
+    "status": "User requirement recorded; gameplay not yet implemented"
+  },
+  "prototype_scope": "Complete editable chair-and-person visual model; no Melee skeleton, moveset, bombs, fighter registration, or ISO changes in this stage."
+}

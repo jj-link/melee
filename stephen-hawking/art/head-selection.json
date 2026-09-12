@@ -1,0 +1,11 @@
+{
+  "source_image": "head-candidate-27183.png",
+  "selected": "head-source.png",
+  "method": "Reference-guided FLUX.2 Klein studio portrait, exterior-connected background matte, native pure-512 Pixal3D reconstruction",
+  "reason": "Retains the glasses and open-mouthed expression while giving reconstruction a complete, unobstructed sculpted head. Direct photograph reconstructions were rejected for malformed geometry.",
+  "background_min_channel": 180,
+  "background_max_spread": 18,
+  "generation_metadata": "head-generation.json",
+  "reference_photo_crop_pixels": [398, 115, 810, 534],
+  "likeness": "Stylized visual prototype for review, not a scan or a photorealistic likeness."
+}

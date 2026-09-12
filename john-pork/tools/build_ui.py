@@ -39,9 +39,9 @@ def spans(image):
     return [(int(a), int(b)) for a, b in zip(np.where(boundaries == 1)[0], np.where(boundaries == -1)[0])]
 
 
-def lettering(entries, joint, size, gap, space):
+def lettering(entries, joint, size, gap, space, *, name='JOHN PORK', sources=None):
     # Reuse Melee's actual bitmap glyphs, including its outlined winner lettering.
-    sources = {
+    sources = sources if sources is not None else {
         'J': (15, 0),   # JIGGLYPUFF
         'O': (2, 1),    # FOX
         'H': (9, 4),    # MARTH
@@ -57,10 +57,10 @@ def lettering(entries, joint, size, gap, space):
         # The long winner name has overlapping glow; its leading J occupies x=0..23.
         left, right = (0, 24) if letter == 'J' and joint == 10 else spans(image)[index]
         glyphs[letter] = image.crop((left, 0, right, image.height))
-    width = sum(space if c == ' ' else glyphs[c].width for c in 'JOHN PORK') + gap * 7
+    width = sum(space if c == ' ' else glyphs[c].width for c in name) + gap * (len(name) - 1)
     line = Image.new('L', (width, size[1]), 0)
     x = 0
-    for letter in 'JOHN PORK':
+    for letter in name:
         if letter == ' ':
             x += space
         else:

@@ -30,14 +30,15 @@ namespace CustomSmash
         [STAThread]
         private static int Main(string[] args)
         {
-            if (args.Length != 1)
+            if (args.Length is < 1 or > 2)
             {
-                Console.Error.WriteLine("Usage: CustomSmashBuilder <john-pork project directory>");
+                Console.Error.WriteLine("Usage: CustomSmashBuilder <john-pork project directory> [<hawking project directory>]");
                 return 2;
             }
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
-            string root = Path.GetFullPath(args[0]);
+            string johnRoot = Path.GetFullPath(args[0]);
+            string root = Path.GetFullPath(args[args.Length - 1]);
             BuildPaths.Initialize(root);
             string disc = Path.Combine(root, "output", "custom-smash", "disc");
             string output = Path.Combine(root, "playable", "Melee - Custom Smash.iso");
@@ -62,8 +63,13 @@ namespace CustomSmash
                 if (!(bool)initialize.Invoke(null, null))
                     throw new InvalidDataException("m-ex could not initialize the installed working filesystem.");
 
-                int externalId = JohnPorkFighter.Add(root);
-                ResultNames.Add(root, externalId);
+                int externalId = JohnPorkFighter.Add(johnRoot);
+                var identities = new List<(string Root, string Prefix, int ExternalId)> {
+                    (johnRoot, "john-pork", externalId)
+                };
+                if (args.Length == 2)
+                    identities.Add((root, "hawking", HawkingFighter.Add(root)));
+                ResultNames.Add(identities.ToArray());
 
                 var boot = image.GetBoot();
                 Array.Clear(boot, 0x20, 0x60);
@@ -87,7 +93,7 @@ namespace CustomSmash
                     iso.Rebuild(output, progress);
                 }
                 Console.WriteLine($"Built {output}");
-                Console.WriteLine($"John Pork: external ID {externalId}; original Luigi remains external ID 7.");
+                Console.WriteLine($"John Pork: external ID {externalId}; all original fighters retained.");
                 return 0;
             }
             catch (Exception error)
@@ -123,6 +129,7 @@ namespace CustomSmash
         {
             string library = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lib");
             var baseCode = CodeLoader.FromGCT(File.ReadAllBytes(Path.Combine(library, "codes.gct")));
+            ResultNames.ConfigureRuntime(baseCode);
             baseCode.SetCheckState(true);
             var defaults = CodeLoader.FromINI(File.ReadAllBytes(Path.Combine(library, "codes.ini"))).ToList();
             // Match the supported GUI defaults, except that this build must show

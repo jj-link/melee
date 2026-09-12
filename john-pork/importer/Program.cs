@@ -22,6 +22,16 @@ internal static class Program
                 Rig.Load(args[1]).Export(args[2]);
                 return 0;
             }
+            if (args.Length == 2 && args[0] == "hawking-export")
+            {
+                HawkingAnimations.Export(args[1]);
+                return 0;
+            }
+            if (args.Length == 2 && args[0] == "hawking-import")
+            {
+                HawkingAnimations.Import(args[1]);
+                return 0;
+            }
             if (args.Length == 4 && args[0] == "import-mesh")
             {
                 MeshImporter.Import(args[1], args[2], args[3]);
@@ -47,7 +57,7 @@ internal static class Program
                 UiTextures.Import(args[1], args[2], args[3]);
                 return 0;
             }
-            Console.Error.WriteLine("Usage: export-rig <PlLgNr.dat> <rig.json> | import-mesh <original.dat> <mesh.json> <output.dat> | export-portraits <menu.dat> <directory> | import-portrait <menu.dat> <bank> <frame> <image.png> <output.dat> | export-ui <archive.dat> <directory> | import-ui <source.dat> <textures.json> <output.dat>");
+            Console.Error.WriteLine("Usage: export-rig <costume.dat> <rig.json> | import-mesh <original.dat> <mesh.json> <output.dat> | hawking-export <project-root> | hawking-import <project-root> | export-portraits <menu.dat> <directory> | import-portrait <menu.dat> <bank> <frame> <image.png> <output.dat> | export-ui <archive.dat> <directory> | import-ui <source.dat> <textures.json> <output.dat>");
             return 2;
         }
         catch (Exception ex)
