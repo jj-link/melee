@@ -197,6 +197,10 @@ To rebuild the combined game with both custom fighters:
   again to fire; stored shots can also fire in the air. Side-B fires regular
   missiles; smash side-B fires Super Missiles, on the ground or in the air.
   Down-B retains the chair-safe Samus Bomb. Stored charge clears on a KO.
+- Hawking's visible body is rigidly bound to the chair, so attacks do not move
+  his limbs. The native combat skeleton still drives hitboxes, held items, and
+  projectile emitters. Results use the seated rest pose instead of Zelda's
+  victory poses, retaining the original timing and custom victory audio.
 - Kirby copies Hawking's Charge Shot and Samus cap, not Zelda's reflector.
   Samus does not need to be in the match.
 - Hawking's six source recordings live in `stephen-hawking/voice`. Existing attack

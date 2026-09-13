@@ -101,59 +101,10 @@ if model is None:
     raise RuntimeError('Approved prototype collection is missing')
 model_objects = set(model.all_objects)
 objects = sorted((o for o in model.all_objects if o.type == 'MESH'), key=lambda o: o.name)
-chair_objects = set(bpy.data.collections['Motorized wheelchair'].all_objects)
-head_objects = set(bpy.data.collections['Likeness and spectacles'].all_objects)
 # Source studio is unnecessary in an editable game rig, and must not enter export.
 for obj in list(bpy.data.objects):
     if obj not in model_objects:
         bpy.data.objects.remove(obj, do_unlink=True)
-
-
-def ramp(x, lo, hi):
-    t = min(1.0, max(0.0, (x - lo) / (hi - lo)))
-    return t * t * (3 - 2 * t)
-
-
-def pair(a, b, fraction):
-    if fraction <= 1e-6:
-        return {a: 1.0}
-    if fraction >= 1 - 1e-6:
-        return {b: 1.0}
-    return {a: 1 - fraction, b: fraction}
-
-
-def spine(p):
-    levels = [(0.65, 4), (.88, 66), (1.10, 67), (1.19, 88), (1.24, 89)]
-    for (lo, a), (hi, b) in zip(levels, levels[1:]):
-        if p.z <= hi:
-            return pair(a, b, ramp(p.z, lo, hi))
-    return {89: 1.0}
-
-
-def weights(obj, p):
-    if obj in chair_objects:
-        return {4: 1.0}
-    if obj in head_objects:
-        return spine(p) if 'likeness head' in obj.name.lower() else {89: 1.0}
-    label = obj.name.lower()
-    side = -1 if label.startswith('left') else 1
-    hip, knee, ankle = (12, 13, 15) if side < 0 else (6, 7, 9)
-    upper, elbow, hand = (100, 101, 104) if side < 0 else (72, 73, 76)
-    if any(s in label for s in ('shoe', 'lace', 'sole')):
-        return {ankle: 1.0}
-    if any(s in label for s in ('trouser leg', 'knee', 'shin')):
-        if p.z < .32:
-            return pair(ankle, knee, ramp(p.z, .22, .32))
-        return pair(knee, hip, ramp(p.y, -.44, -.32))
-    if any(s in label for s in ('sleeve', 'elbow', 'forearm', 'cuff', ' hand')):
-        if 'hand' in label or 'cuff' in label or 'sleeve button' in label:
-            return {hand: 1.0}
-        if p.y < -.12:
-            return pair(hand, elbow, ramp(p.y, -.22, -.12))
-        if p.z > 1.06:
-            return pair(upper, 67, ramp(p.z, 1.06, 1.14) * .65)
-        return pair(elbow, upper, ramp(p.y, -.075, .04))
-    return spine(p)
 
 
 # Bake solid swatches and the approved CORNER-domain neck gradient into a texture.
@@ -253,12 +204,10 @@ for obj in objects:
     obj.matrix_world = Matrix.Identity(4)
     mesh = obj.data
     mesh.calc_loop_triangles()
-    vertex_weights = [weights(obj, v.co) for v in mesh.vertices]
-    for joint in sorted(set(j for w in vertex_weights for j in w)):
-        group = obj.vertex_groups.new(name=bone_names[joint])
-        for vertex, influences in enumerate(vertex_weights):
-            if joint in influences:
-                group.add([vertex], influences[joint], 'REPLACE')
+    # The visible occupant and chair are rigid. Keep the animated native bones
+    # for hitboxes, held items and projectiles, not for skin deformation.
+    group = obj.vertex_groups.new(name=bone_names[4])
+    group.add(range(len(mesh.vertices)), 1.0, 'REPLACE')
     for triangle in mesh.loop_triangles:
         mat = mesh.materials[triangle.material_index]
         family, mode, parameter = material_modes[mat.name]
@@ -283,18 +232,15 @@ for obj in objects:
             normal = TO_GAME.to_3x3() @ mesh.corner_normals[loop_index].vector
             normal.normalize()
             uv = mesh.uv_layers.active.data[loop_index].uv if mode == 'texture' else baked_uv[corner]
-            influences = vertex_weights[vi]
-            joints = sorted(influences)
-            values = [influences[j] for j in joints]
             key = (obj.name, vi, *[round(c, 7) for c in normal], *[round(c, 7) for c in uv])
             if key not in unique[family]:
                 unique[family][key] = len(entry['vertices'])
                 entry['vertices'].append({'position': list(position), 'normal': list(normal),
-                    'uv': [float(uv.x), float(1 - uv.y)], 'joints': joints, 'weights': values})
+                    'uv': [float(uv.x), float(1 - uv.y)], 'joints': [4], 'weights': [1.0]})
             indices.append(unique[family][key])
         entry['triangles'].append(indices)
     part_manifest.append({'name': obj.name, 'triangles': len(mesh.loop_triangles),
-                          'joints': sorted(set(j for w in vertex_weights for j in w))})
+                          'joints': [4]})
     # Editable blend uses the same game-space geometry and inverse-bind skeleton.
     mesh.transform(TO_GAME)
 save_atlas()
@@ -335,7 +281,10 @@ for obj in objects:
     obj.parent = arm
 
 
-def converted(values, joint, lock_seated_pose):
+def converted(values, joint, lock_seated_pose, lock_root_pose):
+    if lock_root_pose:
+        target = bind[joint]
+        return target['rotation'] + target['translation'] + target['scale']
     if joint <= 3 or joint in (116, 117):
         return values
     target = bind[joint]
@@ -359,7 +308,7 @@ for clip in animation['clips']:
     for frame, samples in enumerate(clip['samples']):
         poses = []
         for i, values in enumerate(samples):
-            value = converted(values, i, clip['lockSeatedPose'])
+            value = converted(values, i, clip['lockSeatedPose'], clip['lockRootPose'])
             pose = Matrix.LocRotScale(Vector(value[3:6]), Euler(value[:3], 'XYZ').to_quaternion(), Vector(value[6:9]))
             parent = bind[i]['parent']
             pose = pose if parent < 0 else poses[parent] @ pose
@@ -379,11 +328,15 @@ for clip in animation['clips']:
             pb.keyframe_insert(data_path='rotation_quaternion', frame=frame, group=pb.name)
             pb.keyframe_insert(data_path='scale', frame=frame, group=pb.name)
     action['native_frame_count'] = clip['frames']
+    if clip['lockRootPose']:
+        action.use_frame_range = True
+        action.frame_start = 0
+        action.frame_end = clip['frames']
 arm.animation_data.action = next(a for a in bpy.data.actions if a.name.endswith('_ACTION_Wait1_figatree'))
 bpy.context.scene.frame_set(0)
 bpy.context.scene.render.fps = 60
 arm['chair_attachment_joint'] = 4
-arm['retarget_method'] = 'Rigid seated pelvis/chair, idle and ground-locomotion poses; native root motion; anatomical Euler deltas from Wait1 for other actions; no joint reindexing'
+arm['retarget_method'] = 'Visible body rigidly bound to the chair; animated native combat bones and root motion retained; results use the seated bind pose; no joint reindexing'
 # Pack source images into the generated edit asset; original .blend remains untouched.
 bpy.ops.file.pack_all()
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT / 'stephen-hawking-game-rig.blend'))

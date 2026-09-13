@@ -134,21 +134,27 @@ internal static class HawkingAnimations
                 if (tree.NodeCount != rig.Joints.Count && !IsVictimTemplate(symbol, tree))
                     throw new InvalidDataException($"{symbol}: {tree.NodeCount} nodes do not match Zelda's 118-joint mapping.");
                 string action = Action(symbol);
-                bool lockSeatedPose = UsesSeatedPose(action);
+                bool lockRootPose = archive.Kind == "result";
+                bool lockSeatedPose = lockRootPose || UsesSeatedPose(action);
                 float duration = durations.GetValueOrDefault(action, tree.FrameCount);
-                manifest.Add(new { symbol, outputSymbol = Rename(symbol), archive = archive.Kind, sourceFrames = tree.FrameCount, frames = duration, nodes = tree.NodeCount, lockSeatedPose });
+                manifest.Add(new { symbol, outputSymbol = Rename(symbol), archive = archive.Kind, sourceFrames = tree.FrameCount, frames = duration, nodes = tree.NodeCount, lockSeatedPose, lockRootPose });
                 if (archive.Kind == "main" && !previewNames.Contains(action)) continue;
-                var players = Players(tree);
-                var frames = Enumerable.Range(0, (int)Math.Ceiling(duration) + 1).Select(f =>
-                    rig.Joints.Select((_, i) => PoseTypes.Select(t => Sample(players, i, t,
-                        duration == 0 ? 0 : Math.Min(tree.FrameCount, f * tree.FrameCount / duration), rig)).ToArray()).ToArray()).ToArray();
-                clips.Add(new { name = Rename(symbol), frames = duration, lockSeatedPose, samples = frames });
+                float[][][] frames;
+                if (lockRootPose) frames = new[] { reference };
+                else
+                {
+                    var players = Players(tree);
+                    frames = Enumerable.Range(0, (int)Math.Ceiling(duration) + 1).Select(f =>
+                        rig.Joints.Select((_, i) => PoseTypes.Select(t => Sample(players, i, t,
+                            duration == 0 ? 0 : Math.Min(tree.FrameCount, f * tree.FrameCount / duration), rig)).ToArray()).ToArray()).ToArray();
+                }
+                clips.Add(new { name = Rename(symbol), frames = duration, lockSeatedPose, lockRootPose, samples = frames });
             }
         // Shooting poses require the seated bind produced by Blender. Do not bootstrap
         // previews from yesterday's bind or change the normal/demo sample schema.
         foreach (var clip in shooting.Describe())
             manifest.Add(new { symbol = clip.SourceSymbol, outputSymbol = clip.Symbol, archive = "main",
-                sourceFrames = clip.Frames, frames = clip.Frames, nodes = clip.Nodes, lockSeatedPose = false,
+                sourceFrames = clip.Frames, frames = clip.Frames, nodes = clip.Nodes, lockSeatedPose = false, lockRootPose = false,
                 sourceAction = clip.SourceAction, action = clip.Action, state = clip.State });
         File.WriteAllText(Path.Combine(output, "hawking-animation-input.json"), JsonSerializer.Serialize(new {
             poseTypes = PoseTypes.Select(t => (int)t).ToArray(), reference, bombDurations = durations, clips, manifest
@@ -178,13 +184,21 @@ internal static class HawkingAnimations
         return Target(target, type) + (value - reference[joint][component]) * ratio;
     }
     private static void Retarget(HSD_FigaTree tree, string symbol, Rig rig, BindDocument bind,
-        float[][] reference, Dictionary<string, float> bombDurations)
+        float[][] reference, Dictionary<string, float> bombDurations, bool lockRootPose)
     {
         var nodes = tree.Nodes;
         // These 52-node clips animate the OTHER fighter through the common victim
         // hierarchy. Seating them would corrupt throws; keep their poses native.
         if (IsVictimTemplate(symbol, tree)) return;
         if (nodes.Count != rig.Joints.Count) throw new InvalidDataException($"Unexpected node mapping in {symbol}.");
+        if (lockRootPose)
+        {
+            // Results retain their native durations/scripts (including victory
+            // voices), but no donor pose or root motion can animate the chair.
+            foreach (var node in nodes) node.Tracks.RemoveAll(t => PoseTypes.Contains(t.TrackType));
+            tree.Nodes = nodes;
+            return;
+        }
         string action = Action(symbol);
         bool bomb = bombDurations.TryGetValue(action, out float duration);
         bool lockSeatedPose = UsesSeatedPose(action);
@@ -334,7 +348,7 @@ internal static class HawkingAnimations
             {
                 var animation = new HSDRawFile(archive.Manager.GetAnimationData(symbol));
                 var tree = animation.Roots.Select(r => r.Data).OfType<HSD_FigaTree>().Single();
-                Retarget(tree, symbol, originalRig, bind, reference, durations);
+                Retarget(tree, symbol, originalRig, bind, reference, durations, archive.Kind == "result");
                 animation.Roots[0].Name = Rename(symbol);
                 int limit = archive.Kind == "main" ? 0x8000 : 0xB000;
                 byte[] encoded = EncodeAnimation(animation, tree, limit);
@@ -395,8 +409,8 @@ internal static class HawkingAnimations
             files, bombDurations = durations, shootingClips,
             shootingBones = new { chargeHand = new { samus = 50, hawking = 104 },
                 throwN = new { samus = 51, hawking = 113 }, missile = new { samus = 56, hawking = 103 } },
-            rootMotion = "Native nodes 0..3,116,117 unchanged except bomb-duration resampling and bind-relative Samus shooting motion",
-            retarget = "Fixed seated pelvis/chair; Zelda Wait1-relative normals and demos; Samus upper-body global rotations with seated arm-segment alignment and hand-relative emitters; bounded-error compression for shooting, bombs and oversized demo clips"
+            rootMotion = "Native nodes 0..3,116,117 unchanged except bomb-duration resampling and bind-relative Samus shooting motion; results remain at the seated bind pose",
+            retarget = "Visible body rigidly bound to the chair; native combat bones retain Zelda Wait1-relative normals and Samus hand-relative shooting motion; results preserve timings/scripts without pose animation"
         }, Program.Json));
         var resultArchive = archives.Single(a => a.Kind == "result");
         var waitArchive = archives.Single(a => a.Kind == "wait");

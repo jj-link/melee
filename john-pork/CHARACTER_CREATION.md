@@ -78,6 +78,8 @@ Opaque textures retain their existing RGB565 colors. When indexing saves space, 
 
 The importer saves with `optimize: true, trim: false`, removing unreachable data and sharing identical buffers without changing the live skeleton or geometry. Preserve every native DOBJ, material, and TOBJ slot: `ftParts_80075240` looks up textures by flat ordinal, including empty drawables. Slots behind empty drawables may share existing same-format image/palette storage, but visible texture objects must remain untouched. Removing an unused TOBJ is not safe.
 
+Hawking's entire visible model is rigidly bound to seated pelvis/chair joint **4**. Keep the animated 118-joint combat hierarchy intact: freezing its attack tracks would also change hitbox, held-item, and projectile-emitter motion. Results clips instead remove all pose tracks, including root motion, while retaining their native durations and subaction scripts. Editable Blender results actions use the same seated bind pose and original frame ranges.
+
 The combined runtime also budgets stage, fighter, and audio memory separately:
 
 - Load the primary stage DAT through the existing `lbArchive_800171CC` scene-heap fallback after selection-screen memory is released, rather than preloading it into the fighter archive cache. Stage-specific scratch allocations remain intact.
@@ -156,5 +158,6 @@ The expanded build was built successfully and exercised in Dolphin **2606a** on 
 - Hawking's Bomb, Zelda jab, and directional ground/air teleport were exercised. Stored charge survived Bomb, jab, and ground teleport, cleared on stock loss, and could be charged again after respawning. A second match loaded successfully.
 - Kirby swallowed Hawking without Samus present, acquired the Samus cap, and used the copied ground/air Charge Shot while retaining Hawking's copied identity. Taking damage removed the held shot and cleared its stored charge.
 - After the match-memory fixes, the normal launcher loaded four-player matches with Hawking, John Pork, Pichu, and Kirby on Yoshi's Story, Venom, Big Blue, Pokémon Stadium, and Final Destination. Sustained play included Kirby copying both custom fighters, Stadium's live video screen, and repeated results/character-select/stage-select transitions. Final Destination loaded 6,613,408 bytes of audio within the revised 6,637,568-byte allocation. All 112 SSM files remained byte-identical to the full-quality voice build.
+- After making Hawking's visible body rigid, a normal Dolphin match on N64 Dream Land exercised the jab, Charge Shot, and missile action without limb deformation. The jab dealt 5% and a full Charge Shot dealt 25%. Hawking remained seated on the winner screen, and both players returned to character selection normally. The gameplay animation archive remained byte-identical; all nine unique results clips retained their original durations and joint counts with pose motion removed.
 
 These checks cover the additional-slot and copy-ability integration. They are not an exhaustive test of every move, stage, game mode, or character interaction.
