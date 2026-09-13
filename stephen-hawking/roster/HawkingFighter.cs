@@ -74,22 +74,22 @@ namespace CustomSmash
             MEX.Fighters.Insert(MEX.FighterCount - MEXFighterIDConverter.InternalSpecialCharCount, hawking);
             var fighter = new HSDRawFile(Path.Combine(character, "PlHw-base.dat"));
             HawkingGameplay.Configure(zelda, hawking, fighter, root);
+            HawkingAudio.Configure(zelda, hawking, fighter, root);
             using (var stream = new MemoryStream())
             {
                 fighter.Save(stream, trim: true);
                 MEX.ImageResource.AddFile(hawking.FighterDataPath, stream.ToArray());
             }
-            AddRosterIcon(root, zelda, hawking);
+            AddRosterIcon(root, hawking);
             int internalId = MEX.Fighters.IndexOf(hawking);
             int externalId = MEXFighterIDConverter.ToExternalID(internalId, MEX.FighterCount);
-            Console.WriteLine($"Added {hawking.NameText}: internal {internalId}, external {externalId}; Zelda retained, down-B is Samus bomb drop.");
+            Console.WriteLine($"Added {hawking.NameText}: internal {internalId}, external {externalId}; Samus Charge Shot/Missiles/Bomb, Zelda melee/teleport.");
             return externalId;
         }
 
-        private static void AddRosterIcon(string root, MEXFighter zelda, MEXFighter hawking)
+        private static void AddRosterIcon(string root, MEXFighter hawking)
         {
             var template = MEX.FighterIcons.Single(i => i.Fighter == MEX.Fighters[20]);
-            var zeldaIcon = MEX.FighterIcons.Single(i => i.Fighter == zelda);
             float row = template.Y - 7.0f;
             // Native rows are not exactly seven units apart. Test whole tile
             // bounds, not matching origins, so Roy and the other originals remain visible.
@@ -113,7 +113,7 @@ namespace CustomSmash
             icon.FromAnimJoint(null);
             icon.Icon.StatusID = Status.UnlockedAndVisible;
             icon.Icon.IsAnimated = 0;
-            icon.SoundEffectID = zeldaIcon.SoundEffectID;
+            icon.SoundEffectID = FighterAudio.Silent;
             using (var roster = new Bitmap(Path.Combine(root, "interface", "hawking-roster.png")))
                 icon.Image = roster.ToTOBJ(GXTexFmt.CI8, GXTlutFmt.RGB5A3);
             MEX.FighterIcons.Add(icon);

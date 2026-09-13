@@ -17,7 +17,8 @@ namespace CustomSmash
         private readonly Dictionary<uint, KeyValuePair<byte, uint>> relocations =
             new Dictionary<uint, KeyValuePair<byte, uint>>();
 
-        internal HawkingNativeCode(string path) { dol = File.ReadAllBytes(path); }
+        internal HawkingNativeCode(string path) : this(File.ReadAllBytes(path)) { }
+        internal HawkingNativeCode(byte[] data) { dol = data; }
         internal uint Position => checked((uint)words.Count * 4);
         internal uint Location(uint address) => locations[address];
         internal uint Read(uint address)

@@ -177,19 +177,56 @@ From PowerShell in the repository root:
 .\play-custom-smash.cmd
 ```
 
+To rebuild the combined game with both custom fighters:
+
+```powershell
+& $python stephen-hawking/tools/build_fighter.py $iso
+```
+
 - John Pork is internal fighter **27**, external fighter **26**; Luigi remains
   **17/7**. The six non-roster special fighters remain at the end of the tables.
-- The expanded fighter keeps Luigi's movement, other specials, and sounds/announcer,
-  but neutral-B is Donkey Kong's chargeable Giant Punch with retargeted animations.
+- John Pork keeps Luigi's movement, other specials, and non-vocal effects, but
+  inherited Luigi vocals are muted. Neutral-B is Donkey Kong's chargeable Giant
+  Punch with retargeted animations.
   Tap B to charge, shield to store charge, and B again to punch; full charge is
   stored automatically. Charge survives other specials and clears on a KO.
 - Kirby copies Giant Punch and its DK hat through a separate cap archive and
   native cap/costume callback adapters; DK does not need to be in the match.
+- Hawking keeps Zelda's normals, grabs, throws, and directional up-B. Neutral-B is
+  Samus Charge Shot: tap B on the ground to charge, shield to store charge, and B
+  again to fire; stored shots can also fire in the air. Side-B fires regular
+  missiles; smash side-B fires Super Missiles, on the ground or in the air.
+  Down-B retains the chair-safe Samus Bomb. Stored charge clears on a KO.
+- Kirby copies Hawking's Charge Shot and Samus cap, not Zelda's reflector.
+  Samus does not need to be in the match.
+- Hawking's six source recordings live in `stephen-hawking/voice`. Existing attack
+  voice cues use “Take that,” damage voice cues use “Oh no,” and KOs use “Ahhh.”
+  Ground and aerial bomb drops add `hawking-eat-my-shit.mp3` alongside the weapon
+  effect. Each victory randomly selects `hawking-predicted-in-88.mp3` or
+  `hawking-a-brief-history.mp3`; other inherited Zelda vocals are silent.
+- Both custom fighters mute their donor selection vocal, character-name announcer
+  call, and crowd chant. Original fighters and their audio banks remain unchanged.
+  Hawking's private voice bank also queues the Zelda/Samus effect banks, preserving
+  melee, teleport, Charge Shot, missile, and bomb effects without either donor
+  fighter being present.
+- Match loading keeps stage archives out of the fighter preload cache and uses
+  the native scene-heap loader after selection-screen memory is released.
+  Lossless costume packing retains visible pixels and native texture slots,
+  allowing 256 KiB to move from the fighter cache to the live scene heap.
+  Another 512 KiB moves from animation ARAM to the audio allocation; the
+  full-quality voice recordings and existing sound banks are unchanged.
+- The rebuilt combined ISO was exercised through the normal launcher with
+  Hawking, John Pork, Pichu, and Kirby on Yoshi's Story, Venom, Big Blue,
+  Pokémon Stadium, and Final Destination, including sustained play, both custom
+  Kirby copies, and repeated results/selection-screen transitions. This is not
+  exhaustive coverage of every roster, stage, or mode.
 - The normal m-ex runtime/default codes are retained, except that the optional
   “Skip Result Screen” code is disabled so winner and player-card names are shown.
 - The generated disc filesystem and m-ex working data remain under
-  `john-pork/output/custom-smash`. Those two build-data trees are regenerated on
-  each build; the Dolphin profile and the old replacement ISO are not deleted.
+  `stephen-hawking/output/custom-smash` for the combined build, or
+  `john-pork/output/custom-smash` for the John-Pork-only build. Those two build-data
+  trees are regenerated on each build; the Dolphin profile and the old
+  replacement ISO are not deleted.
 - Default controls match the earlier build: P1 uses WASD, J/K, I/Space, and Enter
   (or the first XInput controller); P2 uses arrows, Numpad 1/2/5, and Numpad Enter.
 

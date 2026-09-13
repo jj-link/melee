@@ -25,8 +25,8 @@ namespace CustomSmash
             if (data.FighterActionTable.Commands.Length != 320 || data.Articles._s.Length != 4)
                 throw new InvalidDataException("Run john-pork-import before installing John's Giant Punch.");
             var donkey = MEX.Fighters.Single(f => f.FighterDataPath == "PlDk.dat");
-            // Keep Luigi's voice, movement sounds and effects. The original DK
-            // sound bank is additionally resident for the transplanted scripts.
+            // Keep Luigi's movement sounds/effects and preload DK's punch bank.
+            // FighterAudio removes only donor vocals after gameplay is installed.
             john.SSMBitfield1 |= donkey.SSMBitfield1;
             john.SSMBitfield2 |= donkey.SSMBitfield2;
 

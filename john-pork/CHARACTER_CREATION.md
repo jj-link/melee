@@ -74,9 +74,17 @@ The result is `character/john-pork-mesh.json`, plus generated textures. Both are
 
 The resulting costume is a model asset. Fighter registration, gameplay callbacks, animations, and character-select registration are separate concerns; a renamed DAT alone does not create another roster slot.
 
-Opaque textures retain their existing RGB565 colors and resolution. When a texture has at most 256 RGB565 colors and indexing saves space, the importer uses CI8 with an RGB565 palette. This preserves decoded pixels while reducing the fixed match-load heap footprint; geometry, animation targets, and the model archive's structural save settings remain unchanged. The combined builder reimports both costumes so a cached John Pork DAT cannot bypass this encoding.
+Opaque textures retain their existing RGB565 colors. When indexing saves space, the importer uses CI4 for at most 16 colors or CI8 for at most 256 colors; otherwise it uses RGB565. Hawking's solid-color atlas also drops unused rows and adjusts UVs without resampling visible texels. The combined builder reimports both costumes so cached DATs cannot bypass this encoding.
 
-Regression scenario: load John Pork and Hawking together on Hyrule Temple. Their previous RGB565-only textures exhausted heap 4 when `GrSh.dat` was preloaded.
+The importer saves with `optimize: true, trim: false`, removing unreachable data and sharing identical buffers without changing the live skeleton or geometry. Preserve every native DOBJ, material, and TOBJ slot: `ftParts_80075240` looks up textures by flat ordinal, including empty drawables. Slots behind empty drawables may share existing same-format image/palette storage, but visible texture objects must remain untouched. Removing an unused TOBJ is not safe.
+
+The combined runtime also budgets stage, fighter, and audio memory separately:
+
+- Load the primary stage DAT through the existing `lbArchive_800171CC` scene-heap fallback after selection-screen memory is released, rather than preloading it into the fighter archive cache. Stage-specific scratch allocations remain intact.
+- Transfer 256 KiB from the fighter archive cache to the live scene heap. Smaller costume archives leave room in the cache while restoring runtime headroom for effects and Kirby's copy animations.
+- Transfer 512 KiB of ARAM from the animation cache to the sound-bank allocation before the native allocator computes bank sizes. Recordings retain their original quality; neither audio banks nor the total ARAM reservation are enlarged beyond the transferred budget.
+
+Regression scenarios include John Pork and Hawking on Hyrule Temple (the earlier RGB565-only costume overflow) and Hawking/John Pork/Pichu/Kirby on Yoshi's Story (the later stage-preload overflow). Large-stage checks also cover Venom's audio budget, Big Blue's live copy-animation allocations, and Pokémon Stadium's scratch buffers.
 
 ## Identity assets are separate from the model
 
@@ -111,7 +119,7 @@ The `roster/` builder uses the pinned m-ex source and checksum-verified runtime 
 - `importer/JohnPorkAnimations.cs` creates private `PlJp.dat` and `PlJpAJ.dat` archives with eight retargeted Giant Punch clips and ten ground/air states. `JohnPorkGameplay.cs` installs the native charge/punch callbacks, keeps DK's attributes separate from Luigi's, and stores John's persistent charge at `Fighter+0x2238`.
 - `KirbyClone.cs` provides a separate DK copy-cap archive and native callback adapters. DK's full-body copy requires both the cap and costume runtime tables to be bound during ability gain and loss; binding only the cap causes a crash when Kirby swallows John without DK present. The adapters restore the donor entries afterward and preserve John's copied identity. These PowerPC addresses and instructions are specific to the verified game/runtime revision.
 
-Tap neutral-B to charge, shield to store a partial charge, and press B again to punch. Full charge is stored automatically after ten arm swings. Ground and aerial punches are supported; charge survives the other specials and clears on a KO. Luigi-based movement, the other three specials, and the existing voice/announcer remain unchanged. Kirby copies Giant Punch and its DK hat rather than Luigi's fireball.
+Tap neutral-B to charge, shield to store a partial charge, and press B again to punch. Full charge is stored automatically after ten arm swings. Ground and aerial punches are supported; charge survives the other specials and clears on a KO. Luigi-based movement, the other three specials, and non-vocal effects remain unchanged; inherited Luigi vocals, the donor announcer name, and crowd chant are muted. Kirby copies Giant Punch and its DK hat rather than Luigi's fireball.
 
 This John-Pork-only roster build writes `playable/Melee - Custom Smash.iso`, which can be opened directly in Dolphin. Its extracted filesystem, m-ex working data, and separate Dolphin profile live under `output/custom-smash/`. Rebuilding regenerates the two working-data trees but preserves the profile and the older `Melee - John Pork.iso`.
 
@@ -144,5 +152,9 @@ The expanded build was built successfully and exercised in Dolphin **2606a** on 
 - A completed match showed **JOHN PORK** as the winner while the player cards retained separate **LUIGI** and **JOHN PORK** names.
 - After a fresh emulator boot, Kirby swallowed John in a match containing no DK, acquired the DK hat, charged the copied punch to ten swings, and dealt 30% with a full punch. A subsequent KO removed the copied ability and cleared its charge without a crash.
 - Rear and side neck views were checked in Dolphin, including punch poses. The collar-to-head bridge closed the opening and the generated dark collar fringe was removed.
+- In the combined game, Hawking charged, stored, and fired Charge Shot, and fired regular/Super Missiles on the ground and in the air. Observed hits dealt 25% for a full Charge Shot and 12% for a Super Missile.
+- Hawking's Bomb, Zelda jab, and directional ground/air teleport were exercised. Stored charge survived Bomb, jab, and ground teleport, cleared on stock loss, and could be charged again after respawning. A second match loaded successfully.
+- Kirby swallowed Hawking without Samus present, acquired the Samus cap, and used the copied ground/air Charge Shot while retaining Hawking's copied identity. Taking damage removed the held shot and cleared its stored charge.
+- After the match-memory fixes, the normal launcher loaded four-player matches with Hawking, John Pork, Pichu, and Kirby on Yoshi's Story, Venom, Big Blue, Pokémon Stadium, and Final Destination. Sustained play included Kirby copying both custom fighters, Stadium's live video screen, and repeated results/character-select/stage-select transitions. Final Destination loaded 6,613,408 bytes of audio within the revised 6,637,568-byte allocation. All 112 SSM files remained byte-identical to the full-quality voice build.
 
 These checks cover the additional-slot and copy-ability integration. They are not an exhaustive test of every move, stage, game mode, or character interaction.

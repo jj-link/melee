@@ -190,12 +190,19 @@ def bake_tile(colors):
 
 def save_atlas():
     # Write display/sRGB bytes directly, avoiding Blender save/render color transforms.
-    pixels = np.rint(np.clip(atlas[::-1], 0, 1) * 255).astype(np.uint8)
+    # Remove unused atlas rows without resampling any tile or changing its texel coordinates.
+    rows = max(1, (len(tiles) + 31) // 32)
+    height = 16 * (1 << (rows - 1).bit_length())
+    for mesh in meshes:
+        if mesh['material'] == 0:
+            for vertex in mesh['vertices']:
+                vertex['uv'][1] = 1 - (1 - vertex['uv'][1]) * 512 / height
+    pixels = np.rint(np.clip(atlas[:height][::-1], 0, 1) * 255).astype(np.uint8)
     scanlines = b''.join(b'\0' + row.tobytes() for row in pixels)
     def chunk(kind, data):
         return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
     (OUT / 'textures/Hw-colors.png').write_bytes(b'\x89PNG\r\n\x1a\n'
-        + chunk(b'IHDR', struct.pack('>2I5B', 512, 512, 8, 6, 0, 0, 0))
+        + chunk(b'IHDR', struct.pack('>2I5B', 512, height, 8, 6, 0, 0, 0))
         + chunk(b'sRGB', b'\0') + chunk(b'IDAT', zlib.compress(scanlines, 9)) + chunk(b'IEND', b''))
 
 

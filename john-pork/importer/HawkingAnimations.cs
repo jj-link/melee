@@ -120,12 +120,16 @@ internal static class HawkingAnimations
         var archives = Archives(root, file);
         var reference = Reference(rig, archives[0].Manager);
         var durations = BombDurations(root);
+        var shooting = new HawkingSamusAnimations(root);
+        var replaced = Fighter(file).FighterActionTable.Commands.Where((_, i) => HawkingSamusAnimations.IsReplacedAction(i))
+            .Select(a => a.Name).ToHashSet();
         var previewNames = new HashSet<string> { "Wait1", "WalkMiddle", "Run", "JumpF", "Landing", "Attack11", "AttackAirF", "AttackS4S", "DamageN1", "ThrowF", "SpecialLw", "SpecialAirLw" };
         var clips = new List<object>();
         var manifest = new List<object>();
         foreach (var archive in archives)
             foreach (string symbol in archive.Manager.GetAnimationSymbols().Distinct())
             {
+                if (archive.Kind == "main" && replaced.Contains(symbol)) continue;
                 var tree = Tree(archive.Manager, symbol);
                 if (tree.NodeCount != rig.Joints.Count && !IsVictimTemplate(symbol, tree))
                     throw new InvalidDataException($"{symbol}: {tree.NodeCount} nodes do not match Zelda's 118-joint mapping.");
@@ -140,6 +144,12 @@ internal static class HawkingAnimations
                         duration == 0 ? 0 : Math.Min(tree.FrameCount, f * tree.FrameCount / duration), rig)).ToArray()).ToArray()).ToArray();
                 clips.Add(new { name = Rename(symbol), frames = duration, lockSeatedPose, samples = frames });
             }
+        // Shooting poses require the seated bind produced by Blender. Do not bootstrap
+        // previews from yesterday's bind or change the normal/demo sample schema.
+        foreach (var clip in shooting.Describe())
+            manifest.Add(new { symbol = clip.SourceSymbol, outputSymbol = clip.Symbol, archive = "main",
+                sourceFrames = clip.Frames, frames = clip.Frames, nodes = clip.Nodes, lockSeatedPose = false,
+                sourceAction = clip.SourceAction, action = clip.Action, state = clip.State });
         File.WriteAllText(Path.Combine(output, "hawking-animation-input.json"), JsonSerializer.Serialize(new {
             poseTypes = PoseTypes.Select(t => (int)t).ToArray(), reference, bombDurations = durations, clips, manifest
         }, Program.Json));
@@ -310,6 +320,11 @@ internal static class HawkingAnimations
         var archives = Archives(root, fighterFile);
         var reference = Reference(originalRig, archives[0].Manager);
         var durations = BombDurations(root);
+        var shooting = new HawkingSamusAnimations(root);
+        var replaced = fighter.FighterActionTable.Commands.Where((_, i) => HawkingSamusAnimations.IsReplacedAction(i))
+            .Select(a => a.Name).ToHashSet();
+        foreach (string symbol in replaced) archives[0].Manager.RemoveAnimation(symbol);
+        var shootingClips = Array.Empty<HawkingSamusAnimations.Clip>();
         var files = new List<object>();
         foreach (var archive in archives)
         {
@@ -329,7 +344,14 @@ internal static class HawkingAnimations
                 archive.Manager.RemoveAnimation(symbol);
                 archive.Manager.SetAnimation(Rename(symbol), encoded);
             }
-            byte[] data = archive.Manager.RebuildAJFile(symbols.Select(Rename).ToArray(), true);
+            var outputSymbols = symbols.Select(Rename).ToList();
+            if (archive.Kind == "main")
+            {
+                shootingClips = shooting.Import(fighter, costume, archive.Manager);
+                outputSymbols.AddRange(shootingClips.Select(c => c.Symbol));
+                maxClipBytes = Math.Max(maxClipBytes, shootingClips.Max(c => c.Bytes));
+            }
+            byte[] data = archive.Manager.RebuildAJFile(outputSymbols.ToArray(), true);
             if (archive.Wrapper == null) File.WriteAllBytes(Path.Combine(output, archive.Output), data);
             else
             {
@@ -339,7 +361,7 @@ internal static class HawkingAnimations
                 wrapper.Roots.Add(new HSDRootNode { Name = archive.Wrapper, Data = payload });
                 wrapper.Save(Path.Combine(output, archive.Output));
             }
-            files.Add(new { kind = archive.Kind, file = archive.Output, symbol = archive.Wrapper, clips = symbols.Length, maxClipBytes });
+            files.Add(new { kind = archive.Kind, file = archive.Output, symbol = archive.Wrapper, clips = outputSymbols.Count, maxClipBytes });
         }
         void Remap(SBM_FighterAction action, Archive archive)
         {
@@ -369,9 +391,12 @@ internal static class HawkingAnimations
         fighterFile.Save(Path.Combine(output, "PlHw-base.dat"), bufferAlign: true, optimize: false, trim: false);
         File.WriteAllText(Path.Combine(output, "hawking-animation-manifest.json"), JsonSerializer.Serialize(new {
             jointCount = bind.Joints.Length, costume = "PlHwNr.dat", costumeSymbol = Rename(costume.RootName),
-            fighter = "PlHw-base.dat", fighterSymbol = "ftDataZelda", files, bombDurations = durations,
-            rootMotion = "Native nodes 0..3,116,117 unchanged except required bomb-duration resampling",
-            retarget = "Fixed seated pelvis/chair, idle and ground-locomotion poses; native root motion; anatomical Euler deltas from Wait1 for other actions; bounded-error compression for bombs and oversized demo clips"
+            fighter = "PlHw-base.dat", fighterSymbol = "ftDataZelda", actionCount = actions.Length,
+            files, bombDurations = durations, shootingClips,
+            shootingBones = new { chargeHand = new { samus = 50, hawking = 104 },
+                throwN = new { samus = 51, hawking = 113 }, missile = new { samus = 56, hawking = 103 } },
+            rootMotion = "Native nodes 0..3,116,117 unchanged except bomb-duration resampling and bind-relative Samus shooting motion",
+            retarget = "Fixed seated pelvis/chair; Zelda Wait1-relative normals and demos; Samus upper-body global rotations with seated arm-segment alignment and hand-relative emitters; bounded-error compression for shooting, bombs and oversized demo clips"
         }, Program.Json));
         var resultArchive = archives.Single(a => a.Kind == "result");
         var waitArchive = archives.Single(a => a.Kind == "wait");

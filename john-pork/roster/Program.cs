@@ -130,6 +130,7 @@ namespace CustomSmash
             string library = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lib");
             var baseCode = CodeLoader.FromGCT(File.ReadAllBytes(Path.Combine(library, "codes.gct")));
             ResultNames.ConfigureRuntime(baseCode);
+            HawkingAudio.ConfigureRuntime(baseCode);
             baseCode.SetCheckState(true);
             var defaults = CodeLoader.FromINI(File.ReadAllBytes(Path.Combine(library, "codes.ini"))).ToList();
             // Match the supported GUI defaults, except that this build must show
@@ -137,7 +138,7 @@ namespace CustomSmash
             defaults.Single(c => c.Name == "QOL | Skip Result Screen []").SetCheckState(false);
             var accepted = new List<Codes>();
             var addresses = new HashSet<uint>();
-            foreach (var code in new[] { baseCode }.Concat(defaults).Where(c => c.IsChecked()))
+            foreach (var code in new[] { baseCode, MatchLoadingCode(image) }.Concat(defaults).Where(c => c.IsChecked()))
             {
                 if (code.GetCompiled() == null)
                     throw new InvalidDataException($"Required enabled code did not compile: {code.Name}");
@@ -150,6 +151,30 @@ namespace CustomSmash
             image.AddFile("codes.gct", CodeLoader.ToGCT(accepted));
             image.AddFile("codes.ini", CodeLoader.ToINI(Array.Empty<Codes>()));
             Console.WriteLine($"Compiled {accepted.Count} enabled runtime/default code groups; results remain enabled.");
+        }
+
+        private static Codes MatchLoadingCode(ImageResource image)
+        {
+            // Ground_801C06B8: leave stage-specific scratch-buffer setup intact,
+            // but do not preload the stage DAT into the fighter archive cache.
+            // grDatFiles_801C6038 then uses lbArchive_800171CC's native scene-heap
+            // loader after the selection screen is freed, including particles.
+            var dol = new HawkingNativeCode(image.GetDOL());
+            if (dol.Read(0x801C06F0) != 0x4182002C)
+                throw new InvalidDataException("The GALE01 stage archive preload branch has changed.");
+            // Increase the actual synth bank before both its capacity sum and
+            // HSD_SynthSFXAllocateBank. The matching animation-cache reduction
+            // in ConfigureRuntime keeps the end of persistent ARAM unchanged.
+            if (dol.Read(0x800284C4) != 0x90EDADA4)
+                throw new InvalidDataException("The GALE01 fighter audio ARAM allocation has changed.");
+            var code = new Codes { Name = "FIX | Match archive and audio allocation" };
+            code.SetCompiled(HawkingNativeCode.Words(
+                0x041C06F0, 0x4800002C,
+                0xC20284C4, 2,
+                0x3CE70000 | (HawkingAudio.AdditionalAramBytes >> 16), 0x90EDADA4,
+                0x60000000, 0).GetData());
+            code.SetCheckState(true);
+            return code;
         }
     }
 }

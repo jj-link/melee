@@ -39,7 +39,7 @@ def build(source, blender):
     shared.build_character_assets(source, blender)
     importer = JOHN / 'importer/bin/Release/net10.0-windows/JohnPorkImporter.dll'
     inputs = ('PlCo.dat', 'PlZdNr.dat', 'PlZd.dat', 'PlZdAJ.dat', 'PlZdDViWaitAJ.dat',
-              'PlSs.dat', 'PlSsAJ.dat', 'GmRstMZd.dat', 'IrAls.dat', 'GmRegEnd.dat')
+              'PlSsNr.dat', 'PlSs.dat', 'PlSsAJ.dat', 'GmRstMZd.dat', 'IrAls.dat', 'GmRegEnd.dat')
     extract(source, ROOT / 'original', inputs)
     (ROOT / 'original/main.dol').write_bytes(read_dol(source)[1])
     shared.run('dotnet', importer, 'hawking-export', ROOT)
@@ -59,7 +59,7 @@ def build(source, blender):
     shared.prepare_profile(ROOT)
     print(f'Built: {ROOT / "playable/Melee - Custom Smash.iso"}')
     print('Roster includes Stephen Hawking, John Pork, and every original fighter.')
-    print('Hawking retains Zelda moves except down-B: Samus bomb drop, not Sheik transformation.')
+    print('Hawking: Samus Charge Shot, regular/Super Missiles and Bomb; Zelda melee and directional teleport.')
     print(f'Launch the combined game: {REPO / "play-custom-smash.cmd"}')
 
 

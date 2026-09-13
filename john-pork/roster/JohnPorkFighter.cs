@@ -6,6 +6,7 @@ using HSDRaw;
 using HSDRaw.Common;
 using HSDRaw.Common.Animation;
 using HSDRaw.GX;
+using HSDRaw.Melee.Pl;
 using HSDRaw.MEX.Menus;
 using mexTool.Core;
 
@@ -60,6 +61,9 @@ namespace CustomSmash
             int externalId = MEXFighterIDConverter.ToExternalID(internalId, MEX.FighterCount);
             var fighterFile = new HSDRawFile(Path.Combine(root, "character", "PlJp.dat"));
             JohnPorkGameplay.Configure(luigi, john, fighterFile, root);
+            FighterAudio.ReplaceDonorVoices(john,
+                fighterFile.Roots.Select(r => r.Data).OfType<SBM_FighterData>().Single(),
+                FighterAudio.DonorVoiceMap(luigi.SoundBank));
             john.FighterDataPath = "PlJp.dat";
             john.AnimFile = "PlJpAJ.dat";
             john.AnimCount = 320;
@@ -69,17 +73,16 @@ namespace CustomSmash
                 MEX.ImageResource.AddFile(john.FighterDataPath, stream.ToArray());
             }
             MEX.ImageResource.AddFile(john.AnimFile, Path.Combine(root, "character", john.AnimFile));
-            AddRosterIcon(root, luigi, john);
+            AddRosterIcon(root, john);
             Console.WriteLine($"Added {john.NameText}: internal {internalId}, external {externalId}, costume {costume.FileName}.");
             return externalId;
         }
 
-        private static void AddRosterIcon(string root, MEXFighter luigi, MEXFighter john)
+        private static void AddRosterIcon(string root, MEXFighter john)
         {
             // The cell beneath Young Link is empty on the clean Melee roster.
             // Deep-copy both linked graphics structures so no original icon is moved.
             var template = MEX.FighterIcons.Single(i => i.Fighter == MEX.Fighters[20]);
-            var luigiIcon = MEX.FighterIcons.Single(i => i.Fighter == luigi);
             var icon = new MEXFighterIcon
             {
                 Fighter = john,
@@ -95,7 +98,7 @@ namespace CustomSmash
             icon.FromAnimJoint(null);
             icon.Icon.StatusID = Status.UnlockedAndVisible;
             icon.Icon.IsAnimated = 0;
-            icon.SoundEffectID = luigiIcon.SoundEffectID;
+            icon.SoundEffectID = FighterAudio.Silent;
             using (var roster = new Bitmap(Path.Combine(root, "interface", "john-pork-roster-MnSlChr.usd.png")))
                 icon.Image = roster.ToTOBJ(GXTexFmt.CI8, GXTlutFmt.RGB5A3);
             MEX.FighterIcons.Add(icon);

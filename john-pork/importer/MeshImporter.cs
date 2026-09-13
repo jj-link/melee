@@ -137,7 +137,7 @@ internal static class MeshImporter
             triangleCount += mesh.Triangles.Length;
         }
 
-        // Keep all original DOBJ shells, material/texture animation targets, and their absolute indices intact.
+        // Keep all original DOBJ shells, material/texture animation targets, and absolute indices intact.
         // Preserve requested native geometry and its high/low-detail visibility switches.
         HSD_DOBJ? last = null;
         int originalDrawables = 0;
@@ -165,9 +165,31 @@ internal static class MeshImporter
             last!.Next = d;
             last = d;
         }
+        // ftParts_80075240 addresses TOBJs by flat ordinal, including empty
+        // drawables. Keep every slot, but share existing same-format image storage
+        // behind slots that cannot render. Never alter a visible texture object.
+        var textures = new List<HSD_TOBJ>();
+        var visibleTextures = new HashSet<HSDRaw.HSDStruct>();
+        for (var d = rig.Root.Dobj; d != null; d = d.Next)
+            for (var texture = d.Mobj?.Textures; texture != null; texture = texture.Next)
+            {
+                if (texture.ImageData == null) continue;
+                textures.Add(texture);
+                if (d.Pobj != null) visibleTextures.Add(texture._s);
+            }
+        var smallest = textures.GroupBy(t => t.ImageData.Format).ToDictionary(
+            g => g.Key, g => g.MinBy(t => t.ImageData.Width * t.ImageData.Height)!);
+        foreach (var texture in textures)
+        {
+            if (visibleTextures.Contains(texture._s)) continue;
+            var shared = smallest[texture.ImageData.Format];
+            texture.ImageData = shared.ImageData;
+            texture.TlutData = shared.TlutData;
+        }
         rig.Root.Flags |= JOBJ_FLAG.OPA | JOBJ_FLAG.ROOT_OPA | JOBJ_FLAG.LIGHTING | JOBJ_FLAG.TEXGEN;
-        // No trim/optimization of old structures: preserve fighter material-animation targets and skeleton descriptors.
-        rig.File.Save(output, bufferAlign: true, optimize: false, trim: false);
+        // Discard unreachable buffers and deduplicate identical data, but do not trim
+        // live structures: fighter material-animation targets and skeleton indices stay intact.
+        rig.File.Save(output, bufferAlign: true, optimize: true, trim: false);
         Console.WriteLine($"Saved {output}: {rig.Joints.Count} original joints, {originalDrawables} preserved slots, {preserved.Count} native hand drawables, {newDrawables.Count} appended meshes, {triangleCount} new triangles.");
     }
 
@@ -226,11 +248,13 @@ internal static class MeshImporter
                 Blending = 1, MagFilter = GXTexFilter.GX_LINEAR,
                 LOD = new HSD_TOBJ_LOD { MinFilter = GXTexFilter.GX_LINEAR }
             };
-            // CI8 uses 8x4 tiles and a 512-byte RGB565 palette. Keep RGB565 when
-            // indexing would lose colors or increase the archive's memory footprint.
-            int indexedBytes = ((source.Width + 7) & ~7) * source.Height + 512;
-            var format = colors.Count <= 256 && indexedBytes < pixels.Length / 2
-                ? GXTexFmt.CI8 : GXTexFmt.RGB565;
+            // CI4 uses 8x8 tiles and a 32-byte palette; CI8 uses 8x4 tiles
+            // and a 512-byte palette. Both preserve the existing RGB565 colors.
+            int ci4Bytes = ((source.Width + 7) & ~7) * ((source.Height + 7) & ~7) / 2 + 32;
+            int ci8Bytes = ((source.Width + 7) & ~7) * source.Height + 512;
+            var format = colors.Count <= 16 && ci4Bytes < pixels.Length / 2 ? GXTexFmt.CI4
+                : colors.Count <= 256 && ci8Bytes < pixels.Length / 2 ? GXTexFmt.CI8
+                : GXTexFmt.RGB565;
             texture.EncodeImageData(pixels, source.Width, source.Height, format, GXTlutFmt.RGB565);
             material.Textures = texture;
             material.RenderFlags |= RENDER_MODE.TEX0;
