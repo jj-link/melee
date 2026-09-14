@@ -84,9 +84,13 @@ The combined runtime also budgets stage, fighter, and audio memory separately:
 
 - Load the primary stage DAT through the existing `lbArchive_800171CC` scene-heap fallback after selection-screen memory is released, rather than preloading it into the fighter archive cache. Stage-specific scratch allocations remain intact.
 - Transfer 256 KiB from the fighter archive cache to the live scene heap. Smaller costume archives leave room in the cache while restoring runtime headroom for effects and Kirby's copy animations.
-- Transfer 512 KiB of ARAM from the animation cache to the sound-bank allocation before the native allocator computes bank sizes. Recordings retain their original quality; neither audio banks nor the total ARAM reservation are enlarged beyond the transferred budget.
+- Transfer 576 KiB of ARAM from the animation cache to the sound-bank allocation before the native allocator computes bank sizes. Hawking's eight-clip bank needs 355,744 bytes, 75,776 more than the earlier six-clip bank. Preserve the source sample rates and keep both sides of the ARAM transfer matched.
 
 Regression scenarios include John Pork and Hawking on Hyrule Temple (the earlier RGB565-only costume overflow) and Hawking/John Pork/Pichu/Kirby on Yoshi's Story (the later stage-preload overflow). Large-stage checks also cover Venom's audio budget, Big Blue's live copy-animation allocations, and Pokémon Stadium's scratch buffers.
+
+The pinned SSM writer leaves the eight-sample Hawking payload 16 bytes short of Melee's required 32-byte alignment. Normalize only `audio/us/hawking.ssm` after `image.Save`, before rebuilding the ISO: pad the header, update its size field, and retain the declared ARAM payload size. The normalized bank has a 592-byte header field, payload at file offset 608, and total size 356,352 bytes. Do not rewrite vanilla sound banks to fix this private bank.
+
+The sleep recording loops from sample start with its initial ADPCM predictor/history copied into the loop context. A behavior-6 voice wrapper enters `FuraSleepLoop` once, then jumps to the original animation script. Its muted native sound event remains a no-op; the animation's self-loop must not return to the wrapper and restart the recording. Native wake, damage, and removal paths own voice cleanup.
 
 ## Identity assets are separate from the model
 
@@ -127,6 +131,8 @@ This John-Pork-only roster build writes `playable/Melee - Custom Smash.iso`, whi
 
 The combined Stephen Hawking/John Pork game uses the repository-root `play-custom-smash.cmd`. That launcher opens `stephen-hawking/playable/Melee - Custom Smash.iso` with its separate profile under `stephen-hawking/output/custom-smash/DolphinUser`.
 
+The Hawking build also generates Kirby's gray-hair/glasses headpiece with `stephen-hawking/tools/build_kirby_hat_blender.py`, fitted to Kirby's native head geometry. `HawkingKirbyCopy.cs` replaces only the model in private `PlKbHw.dat`, retaining Samus's copy animations and Charge Shot article. It does not replace Kirby's body costumes or the original Samus copy cap.
+
 ## Adapting the process to another character
 
 Choose the base fighter and animation plan before adapting the artwork. Then explicitly review:
@@ -156,8 +162,11 @@ The expanded build was built successfully and exercised in Dolphin **2606a** on 
 - Rear and side neck views were checked in Dolphin, including punch poses. The collar-to-head bridge closed the opening and the generated dark collar fringe was removed.
 - In the combined game, Hawking charged, stored, and fired Charge Shot, and fired regular/Super Missiles on the ground and in the air. Observed hits dealt 25% for a full Charge Shot and 12% for a Super Missile.
 - Hawking's Bomb, Zelda jab, and directional ground/air teleport were exercised. Stored charge survived Bomb, jab, and ground teleport, cleared on stock loss, and could be charged again after respawning. A second match loaded successfully.
-- Kirby swallowed Hawking without Samus present, acquired the Samus cap, and used the copied ground/air Charge Shot while retaining Hawking's copied identity. Taking damage removed the held shot and cleared its stored charge.
-- After the match-memory fixes, the normal launcher loaded four-player matches with Hawking, John Pork, Pichu, and Kirby on Yoshi's Story, Venom, Big Blue, Pokémon Stadium, and Final Destination. Sustained play included Kirby copying both custom fighters, Stadium's live video screen, and repeated results/character-select/stage-select transitions. Final Destination loaded 6,613,408 bytes of audio within the revised 6,637,568-byte allocation. All 112 SSM files remained byte-identical to the full-quality voice build.
+- Kirby swallowed Hawking without Samus present and used the copied ground/air Charge Shot while retaining Hawking's copied identity. Taking damage removed the held shot and cleared its stored charge.
+- With the earlier six-clip Hawking bank, the match-memory fixes let the normal launcher load four-player matches with Hawking, John Pork, Pichu, and Kirby on Yoshi's Story, Venom, Big Blue, Pokémon Stadium, and Final Destination. Sustained play included Kirby copying both custom fighters, Stadium's live video screen, and repeated results/character-select/stage-select transitions. Final Destination loaded 6,613,408 bytes of audio within that build's 6,637,568-byte allocation. All 112 SSM files remained byte-identical to the full-quality voice build.
 - After making Hawking's visible body rigid, a normal Dolphin match on N64 Dream Land exercised the jab, Charge Shot, and missile action without limb deformation. The jab dealt 5% and a full Charge Shot dealt 25%. Hawking remained seated on the winner screen, and both players returned to character selection normally. The gameplay animation archive remained byte-identical; all nine unique results clips retained their original durations and joint counts with pose motion removed.
+- Hawking's inherited Win3 magic graphics were removed only from his result scripts. A fresh Dolphin match forced the third victory pose with X; native result state/action 5 was observed, with no floating flame during the winner reveal or completed results screen. All other demo events, including intro and ending scripts, were preserved.
+- The eight-clip audio build was exercised on Final Destination with Hawking and Jigglypuff. Ground and aerial up-B each played one instance of “a short cut.” Sing kept one snore handle active across five animation loops, then stopped it on natural wake-up; a separate real jab also stopped it immediately. Captured game PCM identified both new recordings and five complete snore repetitions approximately 1.452 seconds apart, rather than restarting every 80 animation frames.
+- The gray-hair/glasses headpiece was checked close-up in Dolphin after a fresh no-Samus copy. Kirby retained Hawking's copied identity, fired a full Charge Shot for 25%, and lost both headpiece and ability on a KO. All six original Kirby body costumes, the vanilla Samus cap, and the Hawking/Samus fighter DATs remained byte-identical.
 
 These checks cover the additional-slot and copy-ability integration. They are not an exhaustive test of every move, stage, game mode, or character interaction.

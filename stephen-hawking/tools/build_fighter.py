@@ -39,10 +39,15 @@ def build(source, blender):
     shared.build_character_assets(source, blender)
     importer = JOHN / 'importer/bin/Release/net10.0-windows/JohnPorkImporter.dll'
     inputs = ('PlCo.dat', 'PlZdNr.dat', 'PlZd.dat', 'PlZdAJ.dat', 'PlZdDViWaitAJ.dat',
-              'PlSsNr.dat', 'PlSs.dat', 'PlSsAJ.dat', 'GmRstMZd.dat', 'IrAls.dat', 'GmRegEnd.dat')
+              'PlSsNr.dat', 'PlSs.dat', 'PlSsAJ.dat', 'PlKbCpSs.dat', 'PlKbNr.dat',
+              'GmRstMZd.dat', 'IrAls.dat', 'GmRegEnd.dat')
     extract(source, ROOT / 'original', inputs)
     (ROOT / 'original/main.dol').write_bytes(read_dol(source)[1])
     shared.run('dotnet', importer, 'hawking-export', ROOT)
+    shared.run('dotnet', importer, 'hawking-kirby-export', ROOT)
+    shared.run(blender, '--background', '--python-exit-code', '1', '--python', TOOLS / 'build_kirby_hat_blender.py')
+    shared.run('dotnet', importer, 'import-mesh', ROOT / 'character/kirby-hawking-donor.dat',
+               ROOT / 'character/kirby-hawking-mesh.json', ROOT / 'character/kirby-hawking-hat.dat')
     shared.run(blender, '--background', '--python-exit-code', '1', '--python', TOOLS / 'rig_game_model_blender.py')
     shared.run('dotnet', importer, 'hawking-import', ROOT)
     shared.run(blender, '--background', '--python-exit-code', '1', '--python', TOOLS / 'render_interface_blender.py')

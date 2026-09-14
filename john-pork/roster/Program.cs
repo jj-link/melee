@@ -83,6 +83,7 @@ namespace CustomSmash
                 MEX.PrepareSave(progress);
                 ComposeCodes(image);
                 image.Save(progress, null, false);
+                HawkingAudio.FinalizeSoundBank();
 
                 Directory.CreateDirectory(Path.GetDirectoryName(output));
                 Console.WriteLine("Rebuilding the separate Custom Smash ISO.");

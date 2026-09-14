@@ -3,6 +3,7 @@ using System.Text.Json;
 using HSDRaw;
 using HSDRaw.Common;
 using HSDRaw.Common.Animation;
+using HSDRaw.Melee.Cmd;
 using HSDRaw.Melee.Pl;
 using HSDRaw.Tools;
 using HSDRaw.Tools.Melee;
@@ -107,6 +108,29 @@ internal static class HawkingAnimations
         "Dash" or "Run" or "RunBrake" or "Turn" or "TurnRun" or
         "HeavyWalk1" or "HeavyWalk2";
 
+    private static SBM_FighterSubactionData RemoveResultGraphics(SBM_FighterSubactionData source)
+    {
+        // Zelda's Win3 spell is positioned for her original hand choreography,
+        // not the seated result pose. Keep timing and non-graphic events intact.
+        byte[] input = source._s.GetData();
+        using var output = new MemoryStream();
+        for (int offset = 0; offset < input.Length;)
+        {
+            int op = input[offset] >> 2;
+            if (op >= ActionCommon.SubActions.Count) throw new InvalidDataException("Unknown Zelda result event.");
+            int size = ActionCommon.SubActions[op].ByteSize;
+            if (size < 4 || offset + size > input.Length) throw new InvalidDataException("Truncated Zelda result event.");
+            // The pinned Zelda result scripts are straight-line; do not discard branch relocations.
+            if (op is 5 or 7) throw new InvalidDataException("Unexpected branch in Zelda result script.");
+            if (op != 0x0A) output.Write(input.AsSpan(offset, size));
+            offset += size;
+            if (op is 0 or 6)
+                return output.Length == input.Length ? source :
+                    new SBM_FighterSubactionData { _s = new HSDStruct(output.ToArray()) };
+        }
+        throw new InvalidDataException("Zelda result script has no terminator.");
+    }
+
 
     public static void Export(string root)
     {
@@ -193,8 +217,8 @@ internal static class HawkingAnimations
         if (nodes.Count != rig.Joints.Count) throw new InvalidDataException($"Unexpected node mapping in {symbol}.");
         if (lockRootPose)
         {
-            // Results retain their native durations/scripts (including victory
-            // voices), but no donor pose or root motion can animate the chair.
+            // Results retain native timing and non-graphic events, but no donor
+            // pose or root motion can animate the chair.
             foreach (var node in nodes) node.Tracks.RemoveAll(t => PoseTypes.Contains(t.TrackType));
             tree.Nodes = nodes;
             return;
@@ -399,6 +423,8 @@ internal static class HawkingAnimations
         {
             string kind = i < 10 ? "result" : i < 12 ? "intro" : i == 12 ? "ending" : "wait";
             Remap(demos[i], archives.Single(a => a.Kind == kind));
+            if (kind == "result" && demos[i].SubAction is { } script)
+                demos[i].SubAction = RemoveResultGraphics(script);
         }
         fighter.DemoActionTable.Commands = demos;
         // ftDataZelda remains the fighter root: the roster clone owns its symbol metadata.
@@ -410,7 +436,7 @@ internal static class HawkingAnimations
             shootingBones = new { chargeHand = new { samus = 50, hawking = 104 },
                 throwN = new { samus = 51, hawking = 113 }, missile = new { samus = 56, hawking = 103 } },
             rootMotion = "Native nodes 0..3,116,117 unchanged except bomb-duration resampling and bind-relative Samus shooting motion; results remain at the seated bind pose",
-            retarget = "Visible body rigidly bound to the chair; native combat bones retain Zelda Wait1-relative normals and Samus hand-relative shooting motion; results preserve timings/scripts without pose animation"
+            retarget = "Visible body rigidly bound to the chair; native combat bones retain Zelda Wait1-relative normals and Samus hand-relative shooting motion; results preserve timing and non-graphic events without pose animation"
         }, Program.Json));
         var resultArchive = archives.Single(a => a.Kind == "result");
         var waitArchive = archives.Single(a => a.Kind == "wait");

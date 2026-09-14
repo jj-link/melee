@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using HSDRaw;
+using HSDRaw.Common;
 using mexTool.Core;
 
 namespace CustomSmash
@@ -27,10 +28,18 @@ namespace CustomSmash
             if (cap.Roots.Any(r => r.Name == "kbFunction" || r.Name == "itFunction"))
                 throw new InvalidDataException("Refusing to overwrite donor Kirby runtime hooks.");
 
+            var headpiece = new HSDRawFile(Path.Combine(root, "character", "kirby-hawking-hat.dat"));
+            var hat = headpiece.Roots.Single(r => r.Name == "KirbyHawking_joint").Data as HSD_JOBJ;
+            if (hat == null)
+                throw new InvalidDataException("Hawking's Kirby headpiece must contain its generated hat joint.");
+            // Replace only this private cap's model. Keep its native animation
+            // descriptors at +4/+8 and Charge Shot article at +0x0C unchanged.
+            capRoot.SetReference(0x00, hat);
+
             // Replace every inherited Zelda copy field, including null costumes.
-            // The vanilla Samus cap is a hat joint plus an article at +0x0C;
-            // it has no full-body costume. Still bind both expanded runtime
-            // tables around native gain/loss, using KirbyClone's save/restore ABI.
+            // The private glasses/hair cap retains Samus's native article and
+            // has no full-body costume. Still bind both expanded runtime tables
+            // around native gain/loss, using KirbyClone's save/restore ABI.
             hawking.KirbyCapSymbol = samus.KirbyCapSymbol;
             hawking.KirbyEffectFile = samus.KirbyEffectFile;
             hawking.KirbyEffectSymbol = samus.KirbyEffectSymbol;

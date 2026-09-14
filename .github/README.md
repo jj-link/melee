@@ -201,13 +201,16 @@ To rebuild the combined game with both custom fighters:
   his limbs. The native combat skeleton still drives hitboxes, held items, and
   projectile emitters. Results use the seated rest pose instead of Zelda's
   victory poses, retaining the original timing and custom victory audio.
-- Kirby copies Hawking's Charge Shot and Samus cap, not Zelda's reflector.
+- Kirby copies Hawking's Charge Shot with gray hair and black glasses, rather
+  than Samus's helmet or Zelda's reflector. Kirby's body stays unchanged, and
   Samus does not need to be in the match.
-- Hawking's six source recordings live in `stephen-hawking/voice`. Existing attack
+- Hawking's eight source recordings live in `stephen-hawking/voice`. Existing attack
   voice cues use “Take that,” damage voice cues use “Oh no,” and KOs use “Ahhh.”
   Ground and aerial bomb drops add `hawking-eat-my-shit.mp3` alongside the weapon
   effect. Each victory randomly selects `hawking-predicted-in-88.mp3` or
   `hawking-a-brief-history.mp3`; other inherited Zelda vocals are silent.
+  Sleep loops `hawking-zzz.mp3` until wake-up or interruption. Ground and aerial
+  up-B play `hawking-a-short-cut.mp3` without replacing the teleport effects.
 - Both custom fighters mute their donor selection vocal, character-name announcer
   call, and crowd chant. Original fighters and their audio banks remain unchanged.
   Hawking's private voice bank also queues the Zelda/Samus effect banks, preserving
@@ -217,8 +220,8 @@ To rebuild the combined game with both custom fighters:
   the native scene-heap loader after selection-screen memory is released.
   Lossless costume packing retains visible pixels and native texture slots,
   allowing 256 KiB to move from the fighter cache to the live scene heap.
-  Another 512 KiB moves from animation ARAM to the audio allocation; the
-  full-quality voice recordings and existing sound banks are unchanged.
+  Another 576 KiB moves from animation ARAM to the audio allocation; the
+  recordings retain their source sample rates, and vanilla sound banks are unchanged.
 - The rebuilt combined ISO was exercised through the normal launcher with
   Hawking, John Pork, Pichu, and Kirby on Yoshi's Story, Venom, Big Blue,
   Pokémon Stadium, and Final Destination, including sustained play, both custom

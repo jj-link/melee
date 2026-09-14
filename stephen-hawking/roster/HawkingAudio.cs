@@ -4,6 +4,7 @@ using System.Linq;
 using CSCore;
 using CSCore.Codecs.MP3;
 using HSDRaw;
+using HSDRaw.Melee.Cmd;
 using HSDRaw.Melee.Pl;
 using HSDRaw.Tools;
 using MeleeMedia.Audio;
@@ -14,7 +15,7 @@ namespace CustomSmash
 {
     internal static class HawkingAudio
     {
-        internal const uint AdditionalAramBytes = 512 * 1024;
+        internal const uint AdditionalAramBytes = 576 * 1024;
         private static int voiceBank = -1;
         private static int zeldaBank, samusBank;
 
@@ -23,7 +24,7 @@ namespace CustomSmash
         {
             string[] clips = {
                 "take-that", "oh-no", "ahhh", "eat-my-shit",
-                "predicted-in-88", "a-brief-history"
+                "predicted-in-88", "a-brief-history", "zzz", "a-short-cut"
             };
             var samples = new DSP[clips.Length];
             var scripts = new SEMBankScript[clips.Length * 3];
@@ -39,6 +40,15 @@ namespace CustomSmash
                     script.SFXID = clip;
                     scripts[clip * 3 + variant] = script;
                 }
+            }
+            // Repeat the complete recording, independently of the 80-frame sleep animation.
+            samples[6].LoopSound = true;
+            foreach (var channel in samples[6].Channels)
+            {
+                channel.LoopStart = 0;
+                channel.LoopPredictorScale = channel.InitialPredictorScale;
+                channel.LoopSampleHistory1 = channel.InitialSampleHistory1;
+                channel.LoopSampleHistory2 = channel.InitialSampleHistory2;
             }
             var bank = new MEXSoundBank(new SEMBank { Scripts = scripts },
                 new SSM { Name = "hawking.ssm", Sounds = samples }) {
@@ -62,11 +72,20 @@ namespace CustomSmash
                 ReplaceVariants(id, Voice(1));
             ReplaceVariants(sounds._s.GetInt32(0x04), Voice(2));
             ReplaceVariants(sounds._s.GetInt32(0x0C), Voice(2));
+            // This donor voice occurs only in the ground/air teleport entry scripts.
+            ReplaceVariants(zeldaBank * 10000 + 23, Voice(7));
             FighterAudio.ReplaceDonorVoices(hawking, data, replacements);
 
             var actions = data.FighterActionTable.Commands;
             FighterAudio.AddBombVoice(actions[307].SubAction, Voice(3));
             FighterAudio.AddBombVoice(actions[309].SubAction, Voice(3));
+            // Behavior6 owns the secondary vocal track, which native wake/hit/KO
+            // cleanup stops. The muted original self-loop must not return here.
+            var sleep = new SBM_FighterSubactionData { _s = HawkingNativeCode.Words(
+                0x44180000, (uint)Voice(6), 0x00007F40, 0x1C000000, 0) };
+            sleep._s.SetReference(16, actions[207].SubAction);
+            actions[207].SubAction = sleep;
+            data.FighterActionTable.Commands = actions;
             var demos = data.DemoActionTable.Commands;
             foreach (int index in new[] { 0, 2, 5 })
                 demos[index].SubAction = FighterAudio.VictoryVoice(demos[index].SubAction, Voice(4), Voice(5));
@@ -83,6 +102,32 @@ namespace CustomSmash
                     if (replacements.ContainsKey(id + variant))
                         replacements[id + variant] = replacement + variant;
             }
+        }
+
+        internal static void FinalizeSoundBank()
+        {
+            if (voiceBank < 0) return;
+            // The pinned MeleeMedia writer does not align the payload after its
+            // variable-size header. Melee reads it at RoundUp32(header + 16).
+            // Normalize only our generated bank after the image overlay is saved.
+            string path = MEX.ImageResource.GetRealFilePath("audio/us/hawking.ssm");
+            byte[] source = File.ReadAllBytes(path);
+            int header, payload;
+            using (var reader = new BinaryReaderExt(new MemoryStream(source)) { BigEndian = true })
+            {
+                header = checked(reader.ReadInt32() + 16);
+                payload = reader.ReadInt32();
+            }
+            if (header < 16 || payload < 0 || (long)header + payload > source.Length)
+                throw new InvalidDataException("Generated Hawking sound bank has an invalid payload size.");
+            int aligned = checked(header + 31) & ~31;
+            if (aligned == header && source.Length == header + payload) return;
+            var output = new byte[checked(aligned + payload)];
+            Buffer.BlockCopy(source, 0, output, 0, header);
+            Buffer.BlockCopy(source, header, output, aligned, payload);
+            for (int i = 0; i < 4; i++)
+                output[i] = (byte)((aligned - 16) >> (24 - i * 8));
+            File.WriteAllBytes(path, output);
         }
 
         internal static void ConfigureRuntime(Codes runtime)
@@ -131,7 +176,7 @@ namespace CustomSmash
                     else if ((command & 0xFFFFFF) == 0x15F88)
                     {
                         // Full-rate voices plus donor effects exceed the original audio
-                        // reservation on large-bank stages. Transfer 512 KiB from the
+                        // reservation on large-bank stages. Transfer 576 KiB from the
                         // ARAM animation cache; do not shrink any RAM/menu heap.
                         if (size != 168)
                             throw new InvalidDataException("The pinned m-ex heap-definition hook has changed.");
