@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using CSCore;
 using CSCore.Codecs.MP3;
+using CSCore.Codecs.WAV;
 using HSDRaw;
 using HSDRaw.Melee.Cmd;
 using HSDRaw.Melee.Pl;
@@ -212,10 +213,34 @@ namespace CustomSmash
         private static DSP ImportMP3(string path)
         {
             using (var input = new MemoryStream(File.ReadAllBytes(path)))
-            using (IWaveSource source = new DmoMp3Decoder(input))
+            using (IWaveSource source = new DmoMp3Decoder(input).ToSampleSource().ToWaveSource(16))
+            using (var decoded = new MemoryStream())
             using (var wave = new MemoryStream())
             {
-                source.WriteToWaveStream(wave);
+                // Normalize only our private PCM, not the recordings or donor SEM.
+                // Native speech peaks around -2..-0.5 dBFS; -1 dBFS brings these
+                // recordings up by 1.9..6.6 dB while leaving ADPCM headroom.
+                var buffer = new byte[16384];
+                int count;
+                while ((count = source.Read(buffer, 0, buffer.Length)) > 0)
+                    decoded.Write(buffer, 0, count);
+                byte[] pcm = decoded.GetBuffer();
+                int length = checked((int)decoded.Length);
+                int peak = 0;
+                for (int offset = 0; offset < length; offset += 2)
+                    peak = Math.Max(peak, Math.Abs((int)BitConverter.ToInt16(pcm, offset)));
+                if (peak > 0)
+                {
+                    double gain = short.MaxValue * Math.Pow(10, -1.0 / 20) / peak;
+                    for (int offset = 0; offset < length; offset += 2)
+                    {
+                        short value = (short)Math.Round(BitConverter.ToInt16(pcm, offset) * gain);
+                        pcm[offset] = (byte)value;
+                        pcm[offset + 1] = (byte)(value >> 8);
+                    }
+                }
+                using (var writer = new WaveWriter(wave, source.WaveFormat))
+                    writer.Write(pcm, 0, length);
                 var sample = new DSP();
                 sample.FromWAVE(wave.ToArray());
                 return sample;

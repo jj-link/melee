@@ -201,9 +201,12 @@ To rebuild the combined game with both custom fighters:
   his limbs. The native combat skeleton still drives hitboxes, held items, and
   projectile emitters. Results use the seated rest pose instead of Zelda's
   victory poses, retaining the original timing and custom victory audio.
-- Kirby copies Hawking's Charge Shot with gray hair and black glasses, rather
-  than Samus's helmet or Zelda's reflector. Kirby's body stays unchanged, and
-  Samus does not need to be in the match.
+- Hawking's hair uses warm light-brown/dark-blond tones. The recolor is restricted
+  to the authored hair mask; facial features and skin colors are unchanged.
+- Kirby copies Hawking's Charge Shot with side-swept brown hair and black glasses,
+  rather than Samus's helmet or Zelda's reflector. Overlapping locks and recessed
+  roots avoid a smooth cap silhouette or exposed scalp gaps. Kirby's body stays
+  unchanged, and Samus does not need to be in the match.
 - Hawking's eight source recordings live in `stephen-hawking/voice`. Existing attack
   voice cues use “Take that,” damage voice cues use “Oh no,” and KOs use “Ahhh.”
   Ground and aerial bomb drops add `hawking-eat-my-shit.mp3` alongside the weapon
@@ -211,6 +214,9 @@ To rebuild the combined game with both custom fighters:
   `hawking-a-brief-history.mp3`; other inherited Zelda vocals are silent.
   Sleep loops `hawking-zzz.mp3` until wake-up or interruption. Ground and aerial
   up-B play `hawking-a-short-cut.mp3` without replacing the teleport effects.
+  His private voice samples are peak-normalized to -1 dBFS before DSP encoding
+  to balance them against native voices, without changing the source recordings,
+  sample rates, durations, or pitch variants.
 - Both custom fighters mute their donor selection vocal, character-name announcer
   call, and crowd chant. Original fighters and their audio banks remain unchanged.
   Hawking's private voice bank also queues the Zelda/Samus effect banks, preserving

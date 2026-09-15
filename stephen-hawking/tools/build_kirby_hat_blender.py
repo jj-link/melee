@@ -1,4 +1,4 @@
-"""Build only Kirby's Hawking-copy glasses and gray hair, in native game space.
+"""Build only Kirby's Hawking-copy glasses and warm brown hair, in native game space.
 
 Run with Blender --background --python tools/build_kirby_hat_blender.py.
 Append -- --preview to also render character/kirby-hawking-hat-preview.png.
@@ -22,9 +22,9 @@ OUT = ROOT / 'character'
 TAU = math.tau
 MATERIALS = [
     {'name': 'KH charcoal glasses', 'diffuse': [.075, .070, .065, 1.0]},
-    {'name': 'KH silver gray hair', 'diffuse': [.58, .60, .63, 1.0]},
-    {'name': 'KH pale silver locks', 'diffuse': [.77, .79, .81, 1.0]},
-    {'name': 'KH graphite hair roots', 'diffuse': [.39, .42, .46, 1.0]},
+    {'name': 'KH warm brown hair', 'diffuse': [.47, .38, .28, 1.0]},
+    {'name': 'KH muted dark blond strands', 'diffuse': [.63, .54, .42, 1.0]},
+    {'name': 'KH warm shadow roots', 'diffuse': [.32, .25, .18, 1.0]},
 ]
 
 
@@ -197,104 +197,106 @@ class Headpiece:
                                   8.10 + .16 * math.sin(math.pi * i / 4)) for i in range(5)]
         self.tube('KH raised nose bridge', bridge, .135)
 
-    @staticmethod
-    def hairline(phi):
-        # Receding high forehead, shorter temples, slightly longer nape. Small
-        # scallops break the edge without turning the thin shell into a helmet.
-        front = max(0.0, math.cos(phi))
-        back = max(0.0, -math.cos(phi))
-        return 1.09 - .39 * front ** 2 + .14 * back + .027 * math.sin(7 * phi + .4)
-
-    def hair_cap(self):
-        sectors, rings = 24, 6
-        vertices, faces, families = [], [], []
-        for clearance in (.15, .055):
-            vertices.append(self.head.polar(0, 0, clearance))
-            for ring in range(1, rings + 1):
-                for sector in range(sectors):
-                    phi = TAU * sector / sectors
-                    vertices.append(self.head.polar(self.hairline(phi) * ring / rings,
-                                                    phi, clearance))
-        layer_size = 1 + sectors * rings
-        for layer in range(2):
-            offset = layer * layer_size
-            for sector in range(sectors):
-                following = (sector + 1) % sectors
-                faces.append((offset, offset + 1 + sector, offset + 1 + following))
-                families.append(1 if layer == 0 else 3)
-            for ring in range(rings - 1):
-                for sector in range(sectors):
-                    following = (sector + 1) % sectors
-                    a, b = offset + 1 + ring * sectors, offset + 1 + (ring + 1) * sectors
-                    faces.append((a + sector, b + sector, b + following, a + following))
-                    families.append(1 if layer == 0 else 3)
-        edge = 1 + (rings - 1) * sectors
-        for sector in range(sectors):
-            a, b = edge + sector, edge + (sector + 1) % sectors
-            faces.append((a, b, b + layer_size, a + layer_size))
-            families.append(3)
-        self.mesh('KH thin scalloped silver hair cap', vertices, faces, 1, families)
-
-    def lock(self, index, start, end, width, lift):
-        """Flattened, tapered six-section lock with a pale crest, not a hair spike."""
+    def lock(self, index, start, bend, end, width, lift):
+        """Closed, rounded hair mass; dark shoulders separate overlapping locks."""
+        directions = [Vector((math.sin(theta) * math.sin(phi), math.cos(theta),
+                              math.sin(theta) * math.cos(phi)))
+                      for theta, phi in (start, bend, end)]
+        sections, sides = 7, 8
         centers = []
-        for section in range(6):
-            t = section / 5
-            theta = start[0] + (end[0] - start[0]) * t
-            phi = start[1] + (end[1] - start[1]) * t - .12 * math.sin(math.pi * t)
-            centers.append(self.head.polar(theta, phi, .18 + lift * math.sin(math.pi * t)))
+        for section in range(sections):
+            t = section / (sections - 1)
+            # A curved sweep across the crown, not longitude interpolation around
+            # the pole. Unequal starts leave a narrow off-center, receding part.
+            direction = ((1 - t) ** 2 * directions[0]
+                         + 2 * t * (1 - t) * directions[1] + t ** 2 * directions[2])
+            centers.append(self.head.radial(direction, .13 + lift * math.sin(math.pi * t)))
         vertices, faces, families = [], [], []
         for section, center in enumerate(centers):
-            t = section / 5
+            t = section / (sections - 1)
+            arch = math.sin(math.pi * t)
             outward = (center - self.head.center).normalized()
-            tangent = (centers[min(section + 1, 5)] - centers[max(section - 1, 0)]).normalized()
+            tangent = (centers[min(section + 1, sections - 1)]
+                       - centers[max(section - 1, 0)]).normalized()
             lateral = tangent.cross(outward).normalized()
-            # Almost-flat tips sink into the cap while raised crests carry a
-            # restrained silver highlight that remains readable at game distance.
-            taper = .12 + .88 * math.sin(math.pi * (.08 + .90 * t))
-            half_width = width * taper
-            height = .025 + .085 * math.sin(math.pi * t)
-            for side in range(6):
-                angle = TAU * side / 6
+            normal = lateral.cross(tangent).normalized()
+            # Broad overlapping roots and raised crests hide the recessed root
+            # layer; tapered ends, not that layer, define the outer silhouette.
+            half_width = width * (.78 + .55 * arch) * (1 - .80 * t ** 3)
+            height = (.10 + .20 * arch) * (.65 + .35 * arch)
+            for side in range(sides):
+                angle = TAU * side / sides
                 p = center + lateral * (half_width * math.cos(angle))
-                p += outward * (height * math.sin(angle))
-                # Lateral lock edges also fit the source facets, not an idealized sphere.
-                fitted = self.head.radial(p - self.head.center, .17)
+                p += normal * (height * math.sin(angle))
+                # Every shoulder and underside fits native facets independently.
+                # Only the underside is clipped, leaving full rounded upper lobes.
+                fitted = self.head.radial(p - self.head.center, .055)
                 if (p - self.head.center).length < (fitted - self.head.center).length:
                     p = fitted
                 vertices.append(p)
-        for section in range(5):
-            for side in range(6):
-                a, b = section * 6, (section + 1) * 6
-                faces.append((a + side, a + (side + 1) % 6,
-                              b + (side + 1) % 6, b + side))
-                families.append(2 if side == 1 and index % 3 != 1 else 1)
-        faces.extend((tuple(reversed(range(6))), tuple(range(30, 36))))
-        families.extend((1, 1))
-        self.mesh(f'KH swept silver lock {index + 1:02d}', vertices, faces, 1, families)
+        for section in range(sections - 1):
+            for side in range(sides):
+                a, b = section * sides, (section + 1) * sides
+                faces.append((a + side, a + (side + 1) % sides,
+                              b + (side + 1) % sides, b + side))
+                family = 1 if side in (1, 2) else 3
+                # Short warm highlights follow selected crests, never a pale
+                # all-over coating. Dark shoulders remain visible as broad grooves.
+                if side == 1 and index % 3 == 0 and 2 <= section <= 4:
+                    family = 2
+                families.append(family)
+        faces.extend((tuple(reversed(range(sides))),
+                      tuple(range((sections - 1) * sides, sections * sides))))
+        families.extend((3, 1))
+        self.mesh(f'KH swept brown lock {index + 1:02d}', vertices, faces, 1, families)
 
     def hair(self):
-        self.hair_cap()
-        # Front locks sweep from Kirby's right toward the left, leaving the center
-        # forehead pink. Back/temple locks follow the skull rather than puffing out.
+        # Dark roots close scalp gaps under the raised locks. The boundary stays
+        # above their tips, so there is no exposed cap rim or smooth outer dome.
+        # Clearance keeps the sparse support triangles outside the native facets.
+        sectors, rings = 20, 3
+        vertices = [self.head.polar(0, 0, .17)]
+        for ring in range(1, rings + 1):
+            for sector in range(sectors):
+                phi = TAU * sector / sectors
+                front, back = max(0, math.cos(phi)), max(0, -math.cos(phi))
+                edge = .87 - .43 * front + .20 * back + .02 * math.sin(9 * phi + .35)
+                vertices.append(self.head.polar(edge * ring / rings, phi, .17))
+        faces = [(0, 1 + sector, 1 + (sector + 1) % sectors) for sector in range(sectors)]
+        for ring in range(rings - 1):
+            a, b = 1 + ring * sectors, 1 + (ring + 1) * sectors
+            for sector in range(sectors):
+                following = (sector + 1) % sectors
+                faces.append((a + sector, b + sector, b + following, a + following))
+        self.mesh('KH recessed brown roots', vertices, faces, 3)
+
+        # The long bank sweeps left from the side part; the shorter bank combs
+        # right and back. Each row is (root, bend, tip, half-width, crown lift).
         locks = [
-            ((.18, 1.00), (.73, -.62), .39, .12),
-            ((.25, 1.25), (.70, -.26), .40, .14),
-            ((.35, 1.35), (.66, .12), .37, .12),
-            ((.43, 1.50), (.78, .52), .35, .10),
-            ((.27, -.45), (.88, -1.00), .37, .09),
-            ((.42, -1.10), (1.10, -1.43), .33, .08),
-            ((.63, 1.47), (1.10, 1.47), .31, .07),
-            ((.19, 2.20), (.93, 1.93), .40, .10),
-            ((.29, 2.66), (1.12, 2.38), .38, .09),
-            ((.22, 3.08), (1.22, 2.88), .39, .11),
-            ((.21, 3.63), (1.23, 3.40), .39, .10),
-            ((.31, 4.06), (1.12, 3.95), .37, .09),
-            ((.40, 4.60), (1.02, 4.35), .34, .08),
-            ((.11, 5.15), (.72, 4.92), .36, .10),
+            ((.48, .78), (.30, -.10), (.61, -.58), .73, .18),
+            ((.34, 1.03), (.11, -.70), (.75, -.98), .90, .24),
+            ((.24, 1.58), (.13, -1.55), (.91, -1.33), .95, .25),
+            ((.30, 2.14), (.24, -2.00), (1.03, -1.72), .94, .20),
+            ((.43, 2.43), (.43, -2.43), (1.16, -2.15), .93, .16),
+            ((.53, 2.66), (.69, -2.86), (1.22, -2.63), .87, .14),
+            ((.59, 2.92), (.85, 3.04), (1.20, 3.10), .81, .11),
+            ((.51, 1.02), (.64, 1.18), (.91, 1.36), .60, .13),
+            ((.34, 1.43), (.61, 1.55), (1.04, 1.66), .65, .17),
+            ((.37, 2.00), (.65, 1.96), (1.13, 1.98), .69, .16),
+            ((.47, 2.40), (.79, 2.35), (1.19, 2.32), .72, .14),
+            ((.54, 2.72), (.85, 2.65), (1.24, 2.65), .66, .12),
+            # Short overlapping ends break the side contour without spiky tufts
+            # or a level beanie hem. Left and right deliberately do not mirror.
+            ((.72, -1.00), (.85, -1.12), (1.01, -1.28), .43, .10),
+            ((.84, -1.39), (.99, -1.53), (1.14, -1.65), .45, .09),
+            ((.96, -1.90), (1.08, -2.02), (1.25, -2.13), .47, .08),
+            ((1.02, -2.53), (1.15, -2.67), (1.29, -2.76), .44, .07),
+            ((.68, 1.20), (.81, 1.25), (.97, 1.42), .35, .09),
+            ((.91, 1.85), (1.02, 1.96), (1.20, 2.10), .40, .08),
+            ((1.02, 2.55), (1.15, 2.70), (1.30, 2.82), .42, .07),
         ]
-        for index, (start, end, width, lift) in enumerate(locks):
-            self.lock(index, start, end, width, lift)
+        for index, (start, bend, end, width, lift) in enumerate(locks):
+            self.lock(index, start, bend, end, width, lift)
 
     def export(self):
         # Match rig_game_model_blender.py: material families, corner normals,
@@ -411,7 +413,7 @@ def main():
         raise RuntimeError('Expected the independent one-joint Kirby Hawking cap reference')
     head = NativeHead(body_rig)
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    collection = bpy.data.collections.new('EXPORT - Kirby Hawking glasses and silver hair only')
+    collection = bpy.data.collections.new('EXPORT - Kirby Hawking glasses and warm brown hair only')
     bpy.context.scene.collection.children.link(collection)
     materials = [material(item['name'], item['diffuse']) for item in MATERIALS]
     piece = Headpiece(head, collection, materials)

@@ -8,7 +8,12 @@
   "color_reference": {
     "file": "references/color-reference.png",
     "origin": "Additional Cambridge photograph supplied by the user during refinement",
-    "use": "Warm blond-grey hair, warm mid-grey suit and trousers, and an off-white shirt",
+    "use": "Warm mid-grey suit and trousers, and an off-white shirt",
+    "redistributed": false
+  },
+  "hair_color_reference": {
+    "origin": "Photograph supplied by the user during playable-fighter hair refinement",
+    "use": "Warm light-brown/dark-blond hair; explicitly not silver",
     "redistributed": false
   },
   "supplementary": [
@@ -28,15 +33,12 @@
     "generation_record": "head-generation.json",
     "selection_and_matte": "head-selection.json",
     "reconstruction_workflow": "../image-generation/head-api-workflow.json",
-    "diffuse_override": "head-diffuse-blond-grey.png",
+    "diffuse_override": "head-diffuse-warm-brown.png",
     "hair_mask": "head-hair-mask.png",
     "prototype_neck_assembly": "Connected head/neck mesh with a nape-aware fit, removal of overlapping inner-neck faces, and vertex-color skin blending.",
     "hair_tint": {
       "space": "Original embedded diffuse PNG, 8-bit RGB values",
-      "gray_mix_weights": [0.2126, 0.7152, 0.0722],
-      "gray_gain": 1.20,
-      "gray_lift": 2.0,
-      "rgb_multipliers": [1.18, 1.07, 0.84],
+      "rgb_multipliers": [1.34, 1.22, 0.90],
       "output": "Rounded and clamped to 0-255 inside the authored hair mask only",
       "selected_texels": 63761,
       "preserved": "Unmasked pixels and all alpha values are unchanged; dark hair detail is retained."

@@ -125,7 +125,7 @@ def import_head(collection, mount):
             material('Hawking skin', tuple(float(v) for v in linear), roughness=0.72)
         # The authored diffuse changes only the masked hair texels. Sample the
         # original skin above so the face, neck and hands retain their colors.
-        image = bpy.data.images.load(str(ROOT / 'art/head-diffuse-blond-grey.png'), check_existing=True)
+        image = bpy.data.images.load(str(ROOT / 'art/head-diffuse-warm-brown.png'), check_existing=True)
         shader.inputs['Base Color'].links[0].from_node.image = image
     return heads
 
@@ -326,7 +326,7 @@ manifest = {'scope': root['scope'], 'triangles': counts, 'total_triangles': sum(
             'mesh_objects': len(model_meshes), 'bounds_meters': {'min': list(low), 'max': list(high)},
             'head_height_meters': HEAD_HEIGHT, 'head_tilt_degrees': HEAD_TILT,
             'source_head': 'art/hawking-head-generated.glb',
-            'head_diffuse': 'art/head-diffuse-blond-grey.png'}
+            'head_diffuse': 'art/head-diffuse-warm-brown.png'}
 (OUTPUT / 'model-stats.json').write_text(json.dumps(manifest, indent=2))
 print('PROTOTYPE_GEOMETRY', json.dumps(manifest), flush=True)
 
