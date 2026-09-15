@@ -3,6 +3,7 @@
 Builds a complete editable visual prototype and GLB from the checked-in head asset
 and deterministic mechanical/body meshes. This does not alter any playable ISO.
 """
+import argparse
 import json
 import math
 import sys
@@ -24,6 +25,9 @@ OUTPUT.mkdir(exist_ok=True)
 HEAD_HEIGHT = 0.28
 HEAD_TRIANGLES = 5000
 HEAD_TILT = (-8, -15, 0)
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--no-preview', action='store_true', help='Save the editable model without rendering preview images')
+arguments = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
 
 
 def new_collection(name, parent):
@@ -399,5 +403,6 @@ for name, position, target, scale in views:
             if image.source == 'FILE' and image.has_data and image.packed_file is None:
                 image.pack()
         bpy.ops.wm.save_as_mainfile(filepath=str(OUTPUT / 'stephen-hawking.blend'))
-    bpy.ops.render.render(write_still=True)
-print('PROTOTYPE_RENDER_COMPLETE', OUTPUT, flush=True)
+    if not arguments.no_preview:
+        bpy.ops.render.render(write_still=True)
+print('PROTOTYPE_BUILD_COMPLETE' if arguments.no_preview else 'PROTOTYPE_RENDER_COMPLETE', OUTPUT, flush=True)

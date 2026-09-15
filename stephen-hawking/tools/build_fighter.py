@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 JOHN = REPO / 'john-pork'
 TOOLS = ROOT / 'tools'
-WORK = ROOT / 'output/custom-smash'
+WORK = REPO / 'output/custom-smash'
+OUTPUT = REPO / 'Melee - Custom Smash.iso'
 sys.path.insert(0, str(JOHN / 'tools'))
 import build_custom_smash as shared
 from gamecube_disc import extract, extract_system, read_dol
@@ -18,8 +19,8 @@ from gamecube_disc import extract, extract_system, read_dol
 
 def build(source, blender):
     source = source.resolve()
-    if source.is_relative_to(WORK.resolve()) or source.is_relative_to((ROOT / 'playable').resolve()):
-        raise ValueError('The clean source ISO must be outside the generated Hawking build directories.')
+    if source == OUTPUT.resolve() or source.is_relative_to(WORK.resolve()):
+        raise ValueError('The clean source ISO must not be the combined output ISO or inside its generated build directories.')
     if not blender.is_file():
         raise FileNotFoundError(f'Blender is required: {blender}')
     with source.open('rb') as stream:
@@ -28,9 +29,11 @@ def build(source, blender):
         raise ValueError(f'Expected clean USA v1.02 ({shared.CLEAN_DISC_MD5}), got {digest}. Never use a modded ISO as input.')
     for asset in ('art/john-pork-generated.glb', 'character/john-pork-portrait.png'):
         if not (JOHN / asset).is_file():
-            raise FileNotFoundError(f'Existing John Pork asset required: {JOHN / asset}. Build John Pork first.')
+            raise FileNotFoundError(f'Missing checked-in John Pork asset: {JOHN / asset}')
     if not (ROOT / 'prototype/stephen-hawking.blend').is_file():
-        raise FileNotFoundError('Build and approve the Hawking prototype before game conversion.')
+        print('Generating the missing Hawking prototype from checked-in models and textures.', flush=True)
+        shared.run(blender, '--background', '--python-exit-code', '1', '--python',
+                   TOOLS / 'build_prototype_blender.py', '--', '--no-preview')
     print('Verified the clean source; preserving the original ISO and existing John Pork builds.', flush=True)
 
     shared.prepare()
@@ -61,8 +64,14 @@ def build(source, blender):
     extract_system(source, WORK / 'disc/sys')
     extract(source, WORK / 'disc/files', [])
     shared.run(JOHN / 'roster/bin/Release/net48/CustomSmashBuilder.exe', JOHN, ROOT)
-    shared.prepare_profile(ROOT)
-    print(f'Built: {ROOT / "playable/Melee - Custom Smash.iso"}')
+    # Move existing emulator settings with the combined game, without replacing
+    # a profile already configured at the new root-level location.
+    previous_profile = ROOT / 'output/custom-smash/DolphinUser'
+    profile = WORK / 'DolphinUser'
+    if previous_profile.exists() and not profile.exists():
+        shutil.move(str(previous_profile), str(profile))
+    shared.prepare_profile(REPO)
+    print(f'Built: {OUTPUT}')
     print('Roster includes Stephen Hawking, John Pork, and every original fighter.')
     print('Hawking: Samus Charge Shot, regular/Super Missiles and Bomb; Zelda melee and directional teleport.')
     print(f'Launch the combined game: {REPO / "play-custom-smash.cmd"}')

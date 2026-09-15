@@ -1,2 +1,8 @@
 @echo off
-start "" "%~dp0..\dolphin-player\Dolphin-x64\Dolphin.exe" -u "%~dp0stephen-hawking\output\custom-smash\DolphinUser" -C Dolphin.DSP.Volume=75 -e "%~dp0stephen-hawking\playable\Melee - Custom Smash.iso"
+setlocal
+powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File "%~dp0tools\play_custom_smash.ps1" %*
+if errorlevel 1 (
+    echo.
+    pause
+    exit /b 1
+)

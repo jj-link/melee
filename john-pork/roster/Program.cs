@@ -39,9 +39,12 @@ namespace CustomSmash
             CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
             string johnRoot = Path.GetFullPath(args[0]);
             string root = Path.GetFullPath(args[args.Length - 1]);
-            BuildPaths.Initialize(root);
-            string disc = Path.Combine(root, "output", "custom-smash", "disc");
-            string output = Path.Combine(root, "playable", "Melee - Custom Smash.iso");
+            string gameRoot = args.Length == 2 ? Path.GetDirectoryName(root) : root;
+            BuildPaths.Initialize(gameRoot);
+            string disc = Path.Combine(gameRoot, "output", "custom-smash", "disc");
+            string output = args.Length == 2
+                ? Path.Combine(gameRoot, "Melee - Custom Smash.iso")
+                : Path.Combine(gameRoot, "playable", "Melee - Custom Smash.iso");
             int previousPercentage = -1;
             ProgressChangedEventHandler progress = (sender, e) =>
             {

@@ -133,8 +133,9 @@ the next character.
 - NumPy and Pillow, pinned in `reqs/john-pork.txt`.
 - A separately installed [Dolphin Emulator](https://dolphin-emu.org/) to play.
 
-The generated head model is included in `john-pork/art/`; no GPU generation
-service or downloaded model weights are required to rebuild the mod.
+The generated models and textures are included in `john-pork/art/` and
+`stephen-hawking/art/`; no GPU generation service or downloaded model weights are
+required to rebuild the mod.
 
 ### Set up the tools
 
@@ -150,38 +151,55 @@ $python = ".\john-pork\.venv\Scripts\python.exe"
 
 For an existing checkout, run `git submodule update --init --recursive` first.
 
-### Build the expanded roster
+### Build the combined game
 
 ```powershell
 $iso = "C:\Games\Melee-USA-v1.02.iso"
 $blender = "C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
-& $python john-pork/tools/build_custom_smash.py $iso --blender $blender
+& $python stephen-hawking/tools/build_fighter.py $iso --blender $blender
 ```
 
 The builder verifies the source disc, downloads and checksum-verifies the official
-m-ex runtime resources, rebuilds the John Pork costume, extracts a fresh working
-filesystem, and adds the fighter through the pinned m-ex installation/save APIs.
+m-ex runtime resources, rebuilds both custom fighters, extracts a fresh working
+filesystem, and adds the fighters through the pinned m-ex installation/save APIs.
 The resource revision and SHA-256 pin are in
 [`prepare_mextool.py`](../john-pork/tools/prepare_mextool.py); a changed upstream
 rolling-release download is rejected rather than silently substituted.
 
-Open `john-pork/playable/Melee - Custom Smash.iso` in Dolphin. John Pork's extra
-tile is below Young Link at the bottom right.
+If the Hawking prototype `.blend` is missing, the normal build creates it from the
+checked-in models and textures before exporting the fighter. An existing prototype
+is kept. You do not need to copy Blender files from another computer, run a separate
+prototype-generation command, or build the John-Pork-only game first.
 
-The combined Stephen Hawking/John Pork game is launched by **`play-custom-smash.cmd`
-at the repository root**. It opens `stephen-hawking/playable/Melee - Custom Smash.iso`
-with the separate profile under `stephen-hawking/output/custom-smash/DolphinUser`.
-From PowerShell in the repository root:
+The combined game is **`Melee - Custom Smash.iso` at the repository root**. Keep
+your clean source ISO separate from this generated game. Working files and the
+separate Dolphin profile live under `output/custom-smash/`. The first root-level
+build moves the former Hawking-local profile here if no root-level profile exists;
+an existing root-level profile is never overwritten.
+
+To play, double-click **`play-custom-smash.cmd`** at the repository root, or run:
 
 ```powershell
 .\play-custom-smash.cmd
 ```
 
-To rebuild the combined game with both custom fighters:
+The launcher looks for Dolphin through `DOLPHIN_EXE`, its remembered selection,
+`PATH`, and conventional Windows installation folders. If none is found, choose
+`Dolphin.exe` once in the file picker; the choice is remembered on that computer.
+To choose a different installation explicitly:
 
 ```powershell
-& $python stephen-hawking/tools/build_fighter.py $iso
+.\play-custom-smash.cmd "D:\Emulators\Dolphin\Dolphin.exe"
 ```
+
+The John-Pork-only build remains available separately:
+
+```powershell
+& $python john-pork/tools/build_custom_smash.py $iso --blender $blender
+```
+
+Its game is `john-pork/playable/Melee - Custom Smash.iso`. John Pork's extra tile
+is below Young Link at the bottom right.
 
 - John Pork is internal fighter **27**, external fighter **26**; Luigi remains
   **17/7**. The six non-roster special fighters remain at the end of the tables.
@@ -235,11 +253,12 @@ To rebuild the combined game with both custom fighters:
   exhaustive coverage of every roster, stage, or mode.
 - The normal m-ex runtime/default codes are retained, except that the optional
   “Skip Result Screen” code is disabled so winner and player-card names are shown.
-- The generated disc filesystem and m-ex working data remain under
-  `stephen-hawking/output/custom-smash` for the combined build, or
-  `john-pork/output/custom-smash` for the John-Pork-only build. Those two build-data
-  trees are regenerated on each build; the Dolphin profile and the old
-  replacement ISO are not deleted.
+- The generated disc filesystem and m-ex working data live under
+  `output/custom-smash` for the combined build, or
+  `john-pork/output/custom-smash` for the John-Pork-only build. Each build regenerates
+  its working-data trees without deleting the Dolphin profile or the older
+  replacement ISO. Generated games, build data, and per-device Dolphin selections
+  remain untracked.
 - Default controls match the earlier build: P1 uses WASD, J/K, I/Space, and Enter
   (or the first XInput controller); P2 uses arrows, Numpad 1/2/5, and Numpad Enter.
 

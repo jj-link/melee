@@ -11,6 +11,8 @@ ctx.*
 *.ctx
 
 # Build files
+/Melee - Custom Smash.iso
+/output/custom-smash/
 build/
 .ninja_*
 build.ninja
